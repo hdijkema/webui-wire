@@ -39,3 +39,7 @@
 
 # debug information files
 *.dwo
+
+# webui-wire directories
+build
+deps

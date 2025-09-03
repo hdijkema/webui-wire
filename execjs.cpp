@@ -1,0 +1,110 @@
+#include "execjs.h"
+
+#include "webuiwindow.h"
+#include "webwirehandler.h"
+#include "misc.h"
+
+static std::string makeResult(WebWireHandler *h, const Variant_t &v)
+{
+    std::string in = v.toString();
+
+    h->message(std::string("makeResult:") + in);
+    json obj;
+
+    if (in.rfind("json:", 0) == 0) {
+        json j;
+        try {
+            j = json::parse(in.substr(5));
+            obj["result"] = j;
+        } catch(json::parse_error e) {
+            h->error(std::string("exec-js, makeResult from '") + in + "', parse error:" + e.what());
+            obj["result"] = false;
+        }
+
+    } else if (in.rfind("int:", 0) == 0) {
+        obj["result"] = toInt(in.substr(4));
+    } else if (in.rfind("bool:", 0) == 0) {
+        std::string b = lcase(in.substr(5));
+        obj["result"] = (b == "true") ? true : false;
+    } else if (in.rfind("float:", 0) == 0) {
+        obj["result"] = toDouble(in.substr(6));
+    } else {
+        obj["result"] = in;
+    }
+
+    std::string d = obj.dump();
+    h->message(d);
+    return d;
+}
+
+
+std::string ExecJs::esc_quote(const std::string &s)
+{
+    return replace(s, "'", "\\'");
+}
+
+std::string ExecJs::esc_dquote(const std::string & s)
+{
+    return replace(s, "\"", "\\\"");
+}
+
+void ExecJs::run(const std::string &code)
+{
+    if (!_is_void) {
+        _handler->warning("ExecJs:Running code that is declared non void");
+    }
+
+    if (_webui_win == 0) {
+        _handler->error(asprintf("ExecJs:No WebUIWindow available for window %d to run this code in", _win));
+        return;
+    }
+
+    webui_run(_webui_win, code.c_str());
+}
+
+#define MAX_JS_BUF (100 *1024)      // Max 100Kb Buffer
+#define MAX_EXEC_TIME 600           // 10 minutes maximum execution time
+
+std::string ExecJs::call(const std::string &code, bool &ok)
+{
+    char *buf = static_cast<char *>(malloc(MAX_JS_BUF));
+
+    _handler->message("calling: " + code);
+    ok = webui_script(_webui_win, code.c_str(), MAX_EXEC_TIME, buf, MAX_JS_BUF);
+
+    if (_is_void) {
+        _handler->error("ExecJs:Calling code that has been declared void");
+    }
+
+    if (_webui_win == 0) {
+        _handler->error(asprintf("ExecJs:No WebUIWindow available for window %d to run this code in", _win));
+        std::string s = asprintf("NOK:%d:%s:%s", _win, _name.c_str(), "Window not available (WebUIWindow for window gives nullptr)");
+        return s;
+    }
+
+    if (ok) {
+        std::string s = buf;
+        free(buf);
+        return makeResult(_handler, s);
+    } else {
+        free(buf);
+        _handler->error("ExecJs: Error executing " + code);
+        return "";
+    }
+}
+
+ExecJs::ExecJs(WebWireHandler *handler, int win, std::string name, bool is_void)
+{
+    _is_void = is_void;
+    _handler = handler;
+    _win = win;
+    _name = name;
+
+    WebUIWindow *w = _handler->getWindow(_win);
+    if (w == nullptr) {
+        _webui_win = 0;
+    } else {
+        _webui_win = w->webuiWin();
+    }
+}
+\

@@ -1,4 +1,7 @@
 #include "readlineinthread.h"
+#include "misc.h"
+
+#include <thread>
 
 #ifdef _LINUX
 #include <sys/select.h>
@@ -10,6 +13,7 @@ ReadLineInThread::ReadLineInThread()
     _buffer = static_cast<char *>(malloc(_buffer_len + 1));
     _go_on = true;
     _thread = new std::thread([this]() { this->run(); });
+    setThreadName(_thread, "ReadLineInThread");
     _wait_ms = 25;
 }
 
@@ -53,30 +57,54 @@ void ReadLineInThread::haveError(int error_number)
 void ReadLineInThread::run()
 {
 #ifdef _WINDOWS
-    HANDLE hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD fdwMode = (ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS) & ~ENABLE_QUICK_EDIT_MODE;
+    SetConsoleMode(hStdin, fdwMode);
+    INPUT_RECORD inp[10240];
+    int buf_idx = 0;
 #endif
 
+    _wait_ms = 1500;
     while(_go_on) {
         char *s = nullptr;
         bool have_line = false;
 #ifdef _WINDOWS
-        DWORD result = WaitForSingleObject(hStdInput, _wait_ms); // Time in milliseconds to wait
-        if (result == WAIT_OBJECT_0) {
-            s = fgets(_buffer, _buffer_len, stdin);
-            // Check for null and eof and errors
-            if (s == NULL) {
-                // something has happened
-                if (feof(stdin)) {
-                    haveEof();
-                    _go_on = false;
-                } else {
-                    haveError(errno);
-                    _go_on = false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        DWORD nr_events = 0;
+        bool ok = GetNumberOfConsoleInputEvents(hStdin, &nr_events);
+        if (nr_events > 0) {
+            bool ok = ReadConsoleInput(hStdin, inp, 10240, &nr_events);
+
+            if (ok) {
+                int i;
+                for(i = 0; i < nr_events; i++) {
+                    if (inp[i].EventType == KEY_EVENT) {
+                        if (inp[i].Event.KeyEvent.bKeyDown) {
+                            char c = inp[i].Event.KeyEvent.uChar.AsciiChar;
+                            if (c == '\r') { c = '\n'; }
+                            if (c == 8) {
+                                if (buf_idx > 0) {
+                                    fputc(c, stdout);
+                                    fputc(' ', stdout);
+                                    fputc(c, stdout);
+                                    buf_idx--;
+                                }
+                            } else {
+                                fputc(c, stdout);
+                                _buffer[buf_idx++] = c;
+                            }
+                            _buffer[buf_idx] = '\0';
+                            if (c == '\n') {
+                                _buffer[buf_idx] = '\0';
+                                std::string l(_buffer);
+                                haveALine(l);
+                                buf_idx = 0;
+                            }
+                        }
+                    }
                 }
             }
         }
-        have_line = strlen(_buffer) > 0;
-
 #else
         fd_set          read_set;
         struct timeval  tv;
@@ -91,10 +119,11 @@ void ReadLineInThread::run()
             s = fgets(_buffer, _buffer_len, stdin);
             have_line = true;
         }
-#endif
         if (have_line && s != nullptr) {
             std::string l(s);
             haveALine(l);
         }
+#endif
     }
+    fprintf(stderr, "left readline thread\n");
 }

@@ -86,8 +86,10 @@ private:
     int                                  _port;
     int                                  _webui_port;
 
-    void (*_log_handler)(const char *kind, const char *msg);
-    void (*_evt_handler)(const char *msg);
+    void (*_log_handler)(const char *kind, const char *msg, void *user_data);
+    void (*_evt_handler)(const char *msg, void *user_data);
+
+    void                                *_user_data;
 
 private:
     void log(FILE *fh, FILE *log_fh, const char *format, const char *msg);
@@ -99,15 +101,16 @@ public:
 
 private:  // Eventing
     void inputStopped(const Event_t &e);
-    void handleTimer(const Event_t &e);
+    void handleTimer(Event_t e);
 
 public:  // Eventing
     void processInput(const std::string &line, std::string *ok_msg = nullptr);
 
 public:
     WebWireHandler(Application_t *app, int argc, char *argv[],
-                   void (*log_handler)(const char*kind, const char*msg) = nullptr,
-                   void (*evt_handler)(const char*msg) = nullptr
+                   void (*log_handler)(const char *kind, const char *msg, void *user_data) = nullptr,
+                   void (*evt_handler)(const char *msg, void *user_data) = nullptr,
+                   void *user_data = nullptr
                    );
     ~WebWireHandler();
 
@@ -140,9 +143,10 @@ public:
 
     // WebWire internal
 public:
-    //WebWireView *getView(int win);
     WebUIWindow *getWindow(int win);
     WinInfo_t *getWinInfo(int win);
+    Timer_t *getTimer(int win);
+
     std::string serverUrl();
     int serverPort();
     int webuiPort();

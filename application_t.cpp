@@ -168,7 +168,7 @@ void Application_t::quit()
 
 void Application_t::exec()
 {
-    _evt_queue.setWait(2000);
+    _evt_queue.setWait(500);
     Event_t msg = _evt_queue.dequeue();
     while(!msg.is_a(id_app_quit)) {
         if (!msg.is_a(id_evt_null)) {
@@ -202,4 +202,9 @@ Application_t::Application_t()
         exit(1);
     }
     _current_app = this;
+}
+
+Application_t::~Application_t()
+{
+    _current_app = nullptr;
 }

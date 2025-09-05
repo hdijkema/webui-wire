@@ -8,20 +8,31 @@ extern "C" {
 #endif
 
 typedef enum {
-    WEBWIRE_NULL = 0,
-    WEBWIRE_LOG,
-    WEBWIRE_EVENT
-} webwire_evt_kind_t;
+    webwire_null = 0,
+    webwire_event,
+    webwire_log,
+    webwire_invalid_handle = 256,
+} enum_get_result;
 
-WEBUI_WIRE_EXPORT bool webwire_start(int queue_wait_ms, char **msg);
-WEBUI_WIRE_EXPORT void webwire_stop();
-WEBUI_WIRE_EXPORT void webwire_wait_for_exit();
-WEBUI_WIRE_EXPORT bool webwire_command(const char *cmd, char **result);
-WEBUI_WIRE_EXPORT bool webwire_poll_event(char **event);
-WEBUI_WIRE_EXPORT bool webwire_poll_log(char **kind, char **msg);
-WEBUI_WIRE_EXPORT webwire_evt_kind_t webwire_poll_event_or_log(char **kind, char **msg, char **event);
-WEBUI_WIRE_EXPORT webwire_evt_kind_t webwire_get_event_or_log(char **kind, char **msg, char **event);
-WEBUI_WIRE_EXPORT void webwire_free(char *s);
+typedef enum {
+    webwire_valid = 1,
+    webwire_invalid_destroyed,
+    webwire_invalid_needs_destroying,
+    webwire_invalid_null_handle,
+    webwire_invalid_existing_handle_destroy_this_one,
+    webwire_invalid_unexpected
+} enum_handle_status;
+
+typedef void* webwire_handle;
+
+WEBUI_WIRE_EXPORT webwire_handle webwire_new();
+WEBUI_WIRE_EXPORT webwire_handle webwire_current();
+WEBUI_WIRE_EXPORT void webwire_destroy(webwire_handle h);
+WEBUI_WIRE_EXPORT const char *webwire_command(webwire_handle h, const char *command);
+WEBUI_WIRE_EXPORT unsigned int webwire_items(webwire_handle handle);
+WEBUI_WIRE_EXPORT enum_get_result webwire_get(webwire_handle handle, char **evt, char **log_kind, char **log_msg);
+WEBUI_WIRE_EXPORT enum_handle_status webwire_status(webwire_handle h);
+WEBUI_WIRE_EXPORT const char *webwire_status_string(enum_handle_status s);
 
 #ifdef __cplusplus
 }

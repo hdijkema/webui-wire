@@ -57,6 +57,7 @@ public:
 
 public:
     Application_t();
+    ~Application_t();
 };
 
 #endif // APPLICATION_T_H

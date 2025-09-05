@@ -206,6 +206,7 @@ void HttpServer_t::start()
     _crow_thread = new std::thread([this]() {
         run_http_server();
     });
+    setThreadName(_crow_thread, "Crow");
     while(_crow_app == nullptr) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }

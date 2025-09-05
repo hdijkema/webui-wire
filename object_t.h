@@ -12,6 +12,7 @@ class WEBUI_WIRE_EXPORT Object_t
 private:
     //Application_t                              *_app;
     std::list<Object_t *>                       _childs;
+    Object_t *                                  _parent;
     std::unordered_map<std::string, Variant_t>  _properties;
 
 public:

@@ -28,6 +28,7 @@ private:
     bool            _use_browser;
     int             _webui_port;
     WebUIWindow    *_parent_win;
+    bool            _disconnected;
 #ifdef _WINDOWS
     HWND            _win_handle;
 #else
@@ -52,6 +53,7 @@ public:
     void move(int x, int y);
     void resize(int w, int h);
     void useBrowser(bool y);
+    bool disconnected();
 
 public:
 #ifdef _WINDOWS

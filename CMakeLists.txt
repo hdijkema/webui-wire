@@ -71,7 +71,7 @@ else()
 endif()
 
 sub_target(nativefiledialog-1 nativefiledialog ${other_target} ${CMAKE_BUILD_TYPE})
-sub_target(webui-2-static webui ${other_target} Release)
+sub_target(webui-2-static webui ${other_target} Release) #Debug)
 sub_target(upa_url upa ${upa_target} ${CMAKE_BUILD_TYPE})
 
 add_library(libwebui-wire SHARED

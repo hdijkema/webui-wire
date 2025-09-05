@@ -60,6 +60,11 @@ bool Event_t::is_a(const char *other)
     return _event == other;
 }
 
+bool Event_t::isNull()
+{
+    return _event == id_evt_null;
+}
+
 Event_t &Event_t::operator <<(int m)
 {
     _payload.push_back(Variant_t(m));

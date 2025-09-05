@@ -101,16 +101,21 @@ void WebUIWindow::setClosing(bool y)
 
 void WebUIWindow::close()
 {
+    if (_closing) {
 #ifdef _WINDOWS
-    _win_handle = static_cast<HWND>(webui_win32_get_hwnd(_webui_win));
-    if (_parent_win != nullptr) {
-        HWND _parent_handle = _parent_win->_win_handle;
-        if (_parent_handle) {
-            EnableWindow(_parent_handle, TRUE);
+        if (webui_is_shown(_webui_win)) {
+            if (_parent_win != nullptr) {
+                HWND _parent_handle = _parent_win->_win_handle;
+                if (_parent_handle) {
+                    EnableWindow(_parent_handle, TRUE);
+                }
+            }
         }
-    }
 #endif
-    webui_close(_webui_win);
+        //webui_close(_webui_win);
+        webui_destroy(_webui_win);
+        //webui_set_hide(_webui_win, true);
+    }
 }
 
 bool WebUIWindow::canClose()
@@ -146,10 +151,24 @@ typedef struct webui_event_t {
 void WebUIWindow::webuiEvent(webui_event_t *e)
 {
     if (e->event_type == WEBUI_EVENT_CONNECTED) {
+        _disconnected = false;
+        Timer_t *t = _handler->getTimer(_win);
+        if (t != nullptr) {
+            t->stop();
+        }
         _handler->message(asprintf("Window %d (%d) connected - clientid = %d", _win, _webui_win, e->client_id));
         return;
     } else if (e->event_type == WEBUI_EVENT_DISCONNECTED) {
         _handler->message(asprintf("Window %d (%d) disconnected - clientid = %d", _win, _webui_win, e->client_id));
+        _disconnected = true;
+        if (!_closing) {
+            Timer_t *t = _handler->getTimer(_win);
+            if (t != nullptr) {
+                t->setSingleShot(true);
+                t->setTimeout(500);            // Check if still disconnected after 1.5seconds
+                t->start();
+            }
+        }
         return;
     } else if (e->event_type == WEBUI_EVENT_MOUSE_CLICK) {
         _handler->message(asprintf("Window %d (%d) mouseclick - clientid = %d", _win, _webui_win, e->client_id));
@@ -200,6 +219,7 @@ WebUIWindow::WebUIWindow(WebWireHandler *h, int win, const std::string &p, WebUI
     _use_browser = false;
     _handler = h;
     _parent_win = parent_win;
+    _disconnected = false;
 
     _webui_win = webui_new_window();
     h->message(asprintf("_webui_win = %d", _webui_win));
@@ -229,6 +249,11 @@ void WebUIWindow::useBrowser(bool y)
     } else {
         _handler->error("You cannot use 'useBrowser' after a window has been shown");
     }
+}
+
+bool WebUIWindow::disconnected()
+{
+    return _disconnected;
 }
 
 HWND WebUIWindow::nativeHandle()

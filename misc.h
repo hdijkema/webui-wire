@@ -3,8 +3,10 @@
 
 #include <string>
 #include <list>
+#include <thread>
 #include "json.hpp"
 #include "utf8_strings.h"
+#include "webui_wire_defs.h"
 
 // Trim from the start (in place)
 inline void ltrim(std::string &s) {
@@ -165,6 +167,23 @@ inline int toInt(const std::string &s, bool *ok = nullptr)
     return num;
 }
 
+inline bool toBool(const std::string &s, bool *ok = nullptr)
+{
+    std::string b = lcase(s);
+    bool _ok = true;
+    bool r = false;
+    if (b == "true" || b == "#t" || b == "1" || b == "t") {
+        r = true;
+    } else if (b == "false" || b == "#f" || b == "0" || b == "f") {
+        r = false;
+    } else {
+        r = false;
+        _ok = false;
+    }
+    if (ok != nullptr) { *ok = _ok; }
+    return r;
+}
+
 inline double toDouble(const std::string &s, bool *ok = nullptr)
 {
     bool _ok = true;
@@ -192,6 +211,8 @@ inline double toDouble(const std::string &s, bool *ok = nullptr)
 
 
 std::string asprintf(const char *fmt_str, ...);
+
+WEBUI_WIRE_EXPORT void setThreadName(std::thread *thr, std::string name);
 
 
 

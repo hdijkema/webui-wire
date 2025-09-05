@@ -4,7 +4,8 @@
 
 void Object_t::_emit(Event_t evt)
 {
-    Application_t::current()->evtQueue().enqueue(evt);
+    Application_t *a = Application_t::current();
+    if (a) a->evtQueue().enqueue(evt);
 }
 
 void Object_t::deleteLater()
@@ -40,7 +41,9 @@ Object_t::Object_t(Object_t *parent)
         parent->_childs.remove(this);
         parent->_childs.push_back(this);
     }
-    Application_t::current()->addRoute(this, this, id_delete_later);
+    _parent = parent;
+    Application_t *a = Application_t::current();
+    if (a) a->addRoute(this, this, id_delete_later);
 }
 
 Object_t::~Object_t()
@@ -48,17 +51,27 @@ Object_t::~Object_t()
     while(!_childs.empty()) {
         Object_t *child = _childs.front();
         _childs.pop_front();
+        child->_parent = nullptr;                   // release the parent of this child as we are deleting 'downwards'
         delete child;
     }
-    Application_t::current()->delObject(this);
+
+    // Check if we're somewhere in the Object tree, remove ourselve from the parent if not null
+    if (_parent != nullptr) {
+        _parent->_childs.remove(this);
+    }
+
+    Application_t *a = Application_t::current();
+    if (a) a->delObject(this);
 }
 
 void connect(Object_t *sender, std::string event, Object_t *receiver)
 {
-    Application_t::current()->addRoute(sender, receiver, event);
+    Application_t *a = Application_t::current();
+    if (a) a->addRoute(sender, receiver, event);
 }
 
 void disconnect(Object_t *sender, std::string event, Object_t *receiver)
 {
-    Application_t::current()->delRoute(sender, receiver, event);
+    Application_t *a = Application_t::current();
+    if (a) a->delRoute(sender, receiver, event);
 }

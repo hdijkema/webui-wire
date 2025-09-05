@@ -20,10 +20,14 @@ private:
     void timeout();
 
 public:
+    int interval();
+
+public:
     void start();
     void start(int ms);
     void stop();
     void setInterval(int ms);
+    void setTimeout(int ms);
     void setSingleShot(bool y);
 
 public:

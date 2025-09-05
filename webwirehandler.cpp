@@ -74,6 +74,18 @@ defun(cmdExecJs)
     }
 }
 
+defun(cmdUseBrowser)
+{
+    int win = -1;
+    bool browser = false;
+    if (check("use-browser", var(t_int, win) << var(t_bool, browser))) {
+        checkWin;
+
+        w->useBrowser(browser);
+        r_ok(asprintf("use-browser:%d", win));
+    }
+}
+
 defun(cmdSetHtml)
 {
     int win = -1;
@@ -714,8 +726,8 @@ defun(cmdShow)
     int win = -1;
     if (check("show", var(t_int, win))) {
         checkWin;
-
         w->showIfNotShown();
+        r_ok(asprintf("show:%d", win));
     }
 }
 
@@ -836,6 +848,7 @@ void WebWireHandler::processCommand(const std::string &cmd, const std::stringlis
     efun("file-open", cmdFileOpen)
     efun("file-save", cmdFileSave)
     efun("choose-dir", cmdChooseDir)
+    efun("use-browser", cmdUseBrowser)
     else {
         WebWireHandler *h = this;
         r_err(asprintf("Unknown command '%s'", cmd.c_str()));
@@ -847,8 +860,6 @@ void WebWireHandler::event(Event_t msg)
 {
     //std::cout << "WEBWIREHANDLER:" << msg.event() << msg.seqNr() << "\n";
     if (msg.is_a(id_timeout)) {
-        std::string timer_name;
-        msg >> timer_name;
         handleTimer(msg);
     } else if (msg.is_a(id_readline_have_line)) {
         std::string line;
@@ -869,9 +880,9 @@ void WebWireHandler::event(Event_t msg)
         msg >> m;
         if (_log_handler != nullptr && _evt_handler != nullptr) {
             if (strcmp(kind, "EVENT") == 0) {
-                _evt_handler(m.c_str());
+                _evt_handler(m.c_str(), _user_data);
             } else {
-                _log_handler(kind, m.c_str());
+                _log_handler(kind, m.c_str(), _user_data);
             }
         } else {
             log(std_f, _log_fh, kind, m.c_str());
@@ -1021,10 +1032,39 @@ bool WebWireHandler::getArgs(std::string cmd, int win, wwlist<Var> types, std::s
         return i;
     };
 
+    auto mkerr = [this, cmd, types, args](std::string msg) {
+        addErr(cmd + asprintf(": ") + msg);
+        std::string vl = cmd;
+        wwlist<Var>::const_iterator it;
+        for(it = types.begin(); it != types.end(); it++) {
+            if (it->optional) vl += " [";
+            else vl += " <";
+            vl += it->name + ":";
+            switch(it->type) {
+            case t_string: vl += "string"; break;
+            case t_int: vl += "integer"; break;
+            case t_bool: vl += "boolean"; break;
+            case t_double: vl += "real"; break;
+            case t_url: vl += "url"; break;
+            case t_json_string: vl += "json-string"; break;
+            default: vl += "<undef>"; break;
+            }
+            if (it->optional) vl += "]";
+            else vl += ">";
+        }
+        std::stringlist::const_iterator a_it;
+        std::string gl = cmd;
+        for(a_it = args.begin(); a_it != args.end(); a_it++) {
+            gl += " ";
+            gl += *a_it;
+        }
+
+        addErr("syntax: " + vl);
+        addErr("got   : " + gl);
+    };
+
     if (args.size() < get_min_arg_count()) {
-        addErr(cmd + asprintf(": incorrect number of arguments %lld, minimal expected %d", args.size(), get_min_arg_count()));
-        std::string g("  got:");
-        addErr(g + args.join(" "));
+        mkerr(asprintf(": incorrect number of arguments %lld, minimal expected %d", args.size(), get_min_arg_count()));
         addNOk(cmd + asprintf(":%d", win));
         return false;
     }
@@ -1036,9 +1076,9 @@ bool WebWireHandler::getArgs(std::string cmd, int win, wwlist<Var> types, std::s
         VarType t = (*it).type;
         if (t == t_int) {
             bool ok = true;
-            *(*it).i = (i < N) ?toInt((*a_it), &ok) : (*it).d_i;
+            *(*it).i = (i < N) ? toInt((*a_it), &ok) : (*it).d_i;
             if (!ok) {
-                addErr(cmd + ": " + (*it).name + ": expected integer, got " + *a_it);
+                mkerr((*it).name + ": expected integer, got " + *a_it);
                 addNOk(cmd + asprintf(":%d", win));
                 return false;
             }
@@ -1047,7 +1087,7 @@ bool WebWireHandler::getArgs(std::string cmd, int win, wwlist<Var> types, std::s
         } else if (t == t_url) {
             url u = (i < N) ? url(*a_it) : (*it).d_u;
             if (!u.is_valid()) {
-                addErr(cmd + ": " + (*it).name + ": url expected, got " + *a_it);
+                mkerr((*it).name + ": url expected, got " + *a_it);
                 addNOk(cmd + asprintf(":%d", win));
                 return false;
             }
@@ -1058,11 +1098,19 @@ bool WebWireHandler::getArgs(std::string cmd, int win, wwlist<Var> types, std::s
             try {
                 j = json::parse(s);
             } catch(const json::parse_error &e) {
-                addErr(cmd + ": " + (*it).name + ": Json Parse Error '" + e.what() + "'");
+                mkerr((*it).name + ": Json Parse Error '" + e.what() + "'");
                 addNOk(cmd + asprintf(":%d", win));
                 return false;
             }
             *((*it).s) = s;
+        } else if (t == t_bool) {
+            bool ok = true;
+            *(*it).b = (i < N) ? toBool((*a_it), &ok) : (*it).d_b;
+            if (!ok) {
+                mkerr((*it).name + ": expected boolean, got " + *a_it);
+                addNOk(cmd + asprintf(":%d", win));
+                return false;
+            }
         }
 
         if (i < N) { a_it++; }
@@ -1125,8 +1173,8 @@ void WebWireHandler::doQuit()
     wwlist<int> wins = _windows.keys();
     wwlist<int>::iterator it;
     for(it = wins.begin(); it != wins.end(); it++) {
-        //windowCloses(*it, true);
-        closeWindow(*it);
+        windowCloses(*it, true);
+        //closeWindow(*it);
     }
     _app->quit();
 }
@@ -1160,8 +1208,11 @@ static std::string pid()
     return asprintf("%llu", p);
 }
 
-WebWireHandler::WebWireHandler(Application_t *app, int argc, char *argv[], void (*log_handler)(const char *, const char *), void (*evt_handler)(const char *))
-    : Object_t(), _log_handler(log_handler), _evt_handler(evt_handler)
+WebWireHandler::WebWireHandler(Application_t *app, int argc, char *argv[],
+                               void (*log_handler)(const char *, const char *, void *),
+                               void (*evt_handler)(const char *, void *),
+                               void *user_data)
+    : Object_t(), _log_handler(log_handler), _evt_handler(evt_handler), _user_data(user_data)
 {
     connect(this, id_handler_log, this);    // handle log events in the main thread
 
@@ -1241,18 +1292,19 @@ WebWireHandler::~WebWireHandler()
 
 void WebWireHandler::windowCloses(int win, bool do_close)
 {
-    /*
+
     WebUIWindow *w = getWindow(win);
     if (w != nullptr) {
         Timer_t *t = _timers[win];
         WinInfo_t *i = _infos[win];
 
-        _windows.remove(win);
-        _timers.remove(win);
-        _infos.remove(win);
+        _windows.erase(win);
+        _timers.erase(win);
+        _infos.erase(win);
 
         if (do_close) {
-            w->dontCallback();
+            //w->dontCallback();
+            w->setClosing(true);
             w->close();
         }
 
@@ -1262,15 +1314,20 @@ void WebWireHandler::windowCloses(int win, bool do_close)
         WebWireProfile *p = i->profile;
         if (p != nullptr) {
             if (p->usage() == 1) {  // usage will drop to 0 when i is deleted.
-                _profiles.remove(p->profileName());
+                _profiles.erase(p->profileName());
             }
         }
         delete i;   // delete i after w, because otherwise the WebEnginProfile gets deleted before the WebEnginePage.
 
         evt(asprintf("closed:%d", win));
+
+        // If no windows left, call webui_clean.
+        if (_windows.empty()) {
+            webui_clean();
+        }
     }
-*/
-    evt(asprintf("closed:%d", win));
+
+//    evt(asprintf("closed:%d", win));
 }
 
 void WebWireHandler::requestClose(int win)
@@ -1285,14 +1342,6 @@ void WebWireHandler::windowResized(int win, int w, int h)
     WinInfo_t *i = _infos[win];
     i->size = Size_t(w,h);
     evt(asprintf("resized:%d:%d %d", win, i->size.width(), i->size.height()));
-    /*
-    Timer_t *t = _timers[win];
-    WinInfo_t *i = _infos[win];
-    i->size = Size_t(w, h);
-    i->size_set = true;
-    t->start(250);
-    */
-
 }
 
 void WebWireHandler::windowMoved(int win, int x, int y)
@@ -1300,38 +1349,37 @@ void WebWireHandler::windowMoved(int win, int x, int y)
     WinInfo_t *i = _infos[win];
     i->pos = Point_t(x, y);
     evt(asprintf("moved:%d:%d %d", win, i->pos.x(), i->pos.y()));
-    /*
-    Timer_t *t = _timers[win];
-    WinInfo_t *i = _infos[win];
-    i->pos = Point_t(x, y);
-    i->pos_set = true;
-    t->start(250);
-    */
 }
 
-void WebWireHandler::handleTimer(const Event_t &e)
+void WebWireHandler::handleTimer(Event_t e)
 {
+    std::string timer_name;
+    e >> timer_name;
+
     Timer_t *t = static_cast<Timer_t *>(e.sender());
     int win = t->property("win").toInt();
-    if (_infos.contains(win)) {     // We don't want to process anything that has been destroyed
-        WinInfo_t *i = _infos[win];
 
-        if (i->pos_set) {
-            evt(asprintf("moved:%d:%d %d", win, i->pos.x(), i->pos.y()));
-            i->pos_set = false;
-        }
-        if (i->size_set) {
-            evt(asprintf("resized:%d:%d %d", win, i->size.width(), i->size.height()));
-            i->size_set = false;
+    message(asprintf("Window %d: Timer %s fired (timeout ms = %d), check if (still) disconnected",
+                    win,
+                    timer_name.c_str(),
+                    t->interval()
+                     ));
+
+    WebUIWindow *w = getWindow(win);
+    if (w != nullptr) {
+        // Check if we're still disconnected
+        if (w->disconnected()) {
+            closeWindow(win);
         }
     }
+
 }
 
 int WebWireHandler::newWindow(const std::string &profile, int parent_win_id)
 {
     ++_window_nr;
 
-    Timer_t *t = new Timer_t("window-timer");
+    Timer_t *t = new Timer_t("window-close-timer");
     _timers[_window_nr] = t;
     t->setProperty("win", _window_nr);
     t->setSingleShot(true);
@@ -1388,6 +1436,16 @@ WinInfo_t *WebWireHandler::getWinInfo(int win)
     }
 }
 
+Timer_t *WebWireHandler::getTimer(int win)
+{
+    if (_timers.contains(win)) {
+        return _timers[win];
+    } else {
+        _reasons.append(asprintf("Timer for window %d not there, unexpected!", win));
+        return nullptr;
+    }
+}
+
 std::string WebWireHandler::serverUrl()
 {
     return asprintf("http://127.0.0.1:%d/", _port);
@@ -1407,8 +1465,11 @@ bool WebWireHandler::closeWindow(int win)
 {
     WebUIWindow *w = getWindow(win);
     if (w != nullptr) {
+        Timer_t *t = getTimer(win);
+        t->stop();
         w->setClosing(true);
         w->close();
+        windowCloses(win);
     }
     return w != nullptr;
 }

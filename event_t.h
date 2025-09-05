@@ -35,6 +35,7 @@ public:
 public:
     bool is_a(const Event_t & other);
     bool is_a(const char *other);
+    bool isNull();
 
 public:
     Event_t &operator <<(int m);

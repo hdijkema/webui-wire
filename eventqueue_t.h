@@ -9,7 +9,7 @@
 
 #include "event_t.h"
 
-#define MAX_QUEUE_DEPTH 1000
+#define MAX_QUEUE_DEPTH 100000
 
 class WEBUI_WIRE_EXPORT EventQueue_t
 {

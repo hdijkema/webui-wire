@@ -62,6 +62,16 @@ public:
 };
 
 
+typedef enum {
+    debug_detail = 1,
+    debug,
+    info,
+    warning,
+    error,
+    fatal
+} WebWireLogLevel_t;
+
+
 typedef struct {
 
 } WebWireCommunication_t;
@@ -73,6 +83,7 @@ private:
     wwhash<int, Timer_t *>            _timers;
     wwhash<int, WinInfo_t *>          _infos;
     wwhash<std::string, WebWireProfile *> _profiles;
+    std::list<AtDelete_t *>           _to_inform_at_delete;
 
     int                                 _window_nr;
     int                                 _code_handle;
@@ -86,6 +97,8 @@ private:
     int                                  _port;
     int                                  _webui_port;
 
+    WebWireLogLevel_t                    _min_log_level;
+
     void (*_log_handler)(const char *kind, const char *msg, void *user_data);
     void (*_evt_handler)(const char *msg, void *user_data);
 
@@ -94,6 +107,10 @@ private:
 private:
     void log(FILE *fh, FILE *log_fh, const char *format, const char *msg);
     std::stringlist splitArgs(std::string l);
+
+public:
+    void setLogLevel(WebWireLogLevel_t l);
+    WebWireLogLevel_t logLevel();
 
     // Object_t interface
 public:
@@ -123,13 +140,13 @@ public:
 
     // WebWire Command handling
 public:
-    int newWindow(const std::string &app_name, int parent_win_id = -1);
+    int newWindow(const std::string &app_name, bool in_browser, int parent_win_id = -1);
     bool closeWindow(int win);
     void debugWin(int win);
     bool moveWindow(int win, int x, int y);
     bool resizeWindow(int win, int w, int h);
     bool setWindowTitle(int win, const std::string &title);
-    bool setWindowIcon(int win, const FileInfo_t &icn_file);
+    bool setWindowIcon(int win, const std::string &icn_file);
     bool setMenu(int win, const std::string &menu);
     void setShowState(int win, const std::string &state);
     std::string showState(int win);
@@ -158,6 +175,7 @@ public:
     void message(const std::string &msg);
     void warning(const std::string &msg);
 
+    void debugDetail(const std::string &msg);
     void debug(const std::string &msg);
     void error(const std::string &msg);
     void ok(const std::string &msg);
@@ -172,6 +190,10 @@ public:
 
 public:
     void start();
+
+public:
+    void removeAtDelete(AtDelete_t *obj);
+    void addAtDelete(AtDelete_t *obj);
 
 protected:
     void processCommand(const std::string &cmd, const std::stringlist &args);

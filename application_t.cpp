@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "object_t.h"
+#include "webwirehandler.h"
 
 Application_t *Application_t::_current_app = nullptr;
 
@@ -16,6 +17,7 @@ std::string Application_t::sourceKey(Object_t *source, std::string event)
 void Application_t::setHandler(WebWireHandler *h)
 {
     _handler = h;
+    _handler->addAtDelete(this);
 }
 
 WebWireHandler *Application_t::handler()
@@ -163,11 +165,15 @@ Application_t *Application_t::current()
 void Application_t::quit()
 {
     Event_t e(id_app_quit, nullptr);
-    current()->evtQueue().enqueue(e);
+    _evt_queue.enqueue(e);
 }
 
-void Application_t::exec()
+void Application_t::exec(bool *exit_flag = nullptr)
 {
+    if (exit_flag != nullptr) {
+        *exit_flag = false;
+    }
+
     _evt_queue.setWait(500);
     Event_t msg = _evt_queue.dequeue();
     while(!msg.is_a(id_app_quit)) {
@@ -193,6 +199,9 @@ void Application_t::exec()
     }
 
     // TODO: Maye cleanup all connections and objects?
+    if (exit_flag != nullptr) {
+        *exit_flag = true;
+    }
 }
 
 Application_t::Application_t()
@@ -207,4 +216,11 @@ Application_t::Application_t()
 Application_t::~Application_t()
 {
     _current_app = nullptr;
+}
+
+void Application_t::deleteInProgress(std::string from)
+{
+    if (from == "WebWireHandler") {
+        _handler = nullptr;
+    }
 }

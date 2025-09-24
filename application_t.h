@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <list>
+#include "misc.h"
 
 class Object_t;
 class WebWireHandler;
@@ -18,7 +19,7 @@ typedef struct {
     std::string              event;
 } ObjectRoutes_t;
 
-class Application_t
+class Application_t : public AtDelete_t
 {
 private:
     static Application_t *_current_app;
@@ -53,11 +54,15 @@ public:
     void quit();
 
 public:
-    void exec();
+    void exec(bool *exit_flag);
 
 public:
     Application_t();
     ~Application_t();
+
+    // AtDelete_t interface
+public:
+    void deleteInProgress(std::string from);
 };
 
 #endif // APPLICATION_T_H

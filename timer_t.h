@@ -14,6 +14,7 @@ private:
     std::string      _name;
     bool             _single_shot;
     bool             _stopped;
+    bool             _reset;
     std::thread     *_timer_thread;
 
 private:
@@ -26,6 +27,7 @@ public:
     void start();
     void start(int ms);
     void stop();
+    void reset();
     void setInterval(int ms);
     void setTimeout(int ms);
     void setSingleShot(bool y);

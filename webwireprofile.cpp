@@ -182,7 +182,18 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
     eventing.setName("eventing");
     eventing.setSourceCode(
         std::string() +
-        "window._web_wire_put_evt = function(evt) { web_ui_wire_handle_event(JSON.stringify(evt)); }; " //_web_wire_evt_queue.push(evt); };\n"
+        "window._web_wire_evt_queue = [];\n"
+        "window._web_wire_queue_worker = function() {\n"
+        "  if (typeof web_ui_wire_handle_event === 'function') {\n"
+        "     while (window._web_wire_evt_queue.length > 0) {\n"
+        "        let evt = window._web_wire_evt_queue.shift();\n"
+        "        web_ui_wire_handle_event(JSON.stringify(evt));\n"
+        "     }\n"
+        "  }\n"
+        "  window.setTimeout(window._web_wire_queue_worker, 5);\n"
+        "};\n"
+        "window.setTimeout(window._web_wire_queue_worker, 15);\n"
+        "window._web_wire_put_evt = function(evt) { window._web_wire_evt_queue.push(evt); };\n"
         "window._web_wire_event_info = function(e, id, evt) {\n"
         "  let obj = {};\n"
         "  if (e == 'input') {\n"
@@ -285,12 +296,14 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
         "	}\n"
         "	el.innerHTML = '';\n"
         "	let html = '';\n"
-        "	let menus = menubar.menus;\n"
-        "	menubar.forEach(function (menu) {\n"
-        "		let id = menu.id;\n"
-        "		let name = menu.name.replace(/\\s/g, '&nbsp;');\n"
-        "		html += `<div class=\"menubar-item\" id=\"${id}\">${name}<div id=\"${id}-menu\"></div></div>`;\n"
-        "	});\n"
+        "	let menus = menubar.menu;\n"
+        "   if (menus !== undefined) {\n"
+        "	   menus.forEach(function (menu) {\n"
+        "		   let id = menu.id;\n"
+        "		   let name = menu.name.replace(/\\s/g, '&nbsp;');\n"
+        "		   html += `<div class=\"menubar-item\" id=\"${id}\">${name}<div id=\"${id}-menu\"></div></div>`;\n"
+        "	   });\n"
+        "   }\n"
         "	\n"
         "	let openMenu = function(from_id, for_id, submenu) {\n"
         "		let from_el = document.getElementById(from_id);\n"
@@ -302,7 +315,7 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
         "				if (e) { e.innerHTML = '';  }\n"
         "			}, 50);\n"
         "		};\n"
-        "		submenu.forEach(function (menu_item) {\n"
+        "		submenu.menu.forEach(function (menu_item) {\n"
         "			let sep = menu_item.separator;\n"
         "			let add_cl = '';\n"
         "			if (sep) {\n"
@@ -332,7 +345,7 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
         "			0);\n"
         "		el.innerHTML = html;\n"
         "		let menu_el = el;\n"
-        "		submenu.forEach(function (menu_item) {\n"
+        "		submenu.menu.forEach(function (menu_item) {\n"
         "			let id = menu_item.id;\n"
         "			let el = document.getElementById(id);\n"
         "			let submenu = menu_item.menu;\n"
@@ -355,7 +368,7 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
         "				   });\n"
         "				} else {\n"
         "				   el.addEventListener('click', function() {\n"
-        "						let obj = { event: 'menu-item-choosen', item: id };\n"
+        "						let obj = { evt: 'menu-item-choosen', item: id };\n"
         "						window._web_wire_put_evt(obj);\n"
         "						clear_menu(for_id);\n"
         "					});\n"
@@ -366,9 +379,10 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
         "	};\n"
         "	document.body.prepend(el);\n"
         "	el.innerHTML = html;\n"
-        "	menubar.forEach(function (menu) {\n"
+        "   if (menus !== undefined) {\n"
+        "	  menus.forEach(function (menu) {\n"
         "		let id = menu.id;\n"
-        "		let submenu = menu.menu;\n"
+        "		let submenu = menu.submenu;\n"
         "		let el = document.getElementById(id);\n"
         "		if (el !== null) {\n"
         "			if (submenu) {\n"
@@ -379,9 +393,18 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
         "				window._web_wire_bind_evt_ids(`#${id}`, 'click');\n"
         "			}\n"
         "		}\n"
-        "	});\n"
+        "	  });\n"
+        "   }\n"
         "};\n"
      );
+
+    Script_t onload;
+    onload.setName("onload-event");
+    onload.setSourceCode("window.addEventListener('load', function () {"
+                         "  let obj = { evt: 'page-loaded', page_handle: window._page_handle };"
+                         "  window._web_wire_put_evt(obj);"
+                         "}, { once: true });"
+                         );
 
     _css_script.setName("css");
     _css_script.setSourceCode(cssCode(esc(_css)));
@@ -391,6 +414,7 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
     _scripts.push_back(eventing);
     _scripts.push_back(_css_script);
     _scripts.push_back(menus);
+    _scripts.push_back(onload);
 
     _set_html_name = asprintf("window.dom_set_html_%d", world_id);
     _get_html_name = asprintf("window.dom_get_html_%d", world_id);
@@ -577,13 +601,14 @@ void WebWireProfile::set_css(WebWireHandler *h, int win, const std::string &css)
 std::string WebWireProfile::scriptsTag()
 {
     std::list<Script_t>::iterator it = _scripts.begin();
-    std::string tag = "<script>";
+    std::string tag = "";
     while (it != _scripts.end()) {
+        tag += "<script>";
         Script_t &s = *it;
         tag += "\n// " + s.name() + "\n" + s.code() + "\n";
+        tag += "</script>";
         it++;
     }
-    tag += "</script>";
     return tag;
 }
 

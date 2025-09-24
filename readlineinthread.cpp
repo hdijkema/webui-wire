@@ -27,6 +27,9 @@ ReadLineInThread::~ReadLineInThread()
 void ReadLineInThread::quit()
 {
     _go_on = false;
+#ifdef _WINDOWS
+    terminateThread(_thread);
+#endif
     if (_thread->joinable()) {
         _thread->join();
     }
@@ -56,19 +59,30 @@ void ReadLineInThread::haveError(int error_number)
 
 void ReadLineInThread::run()
 {
-#ifdef _WINDOWS
-    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-    DWORD fdwMode = (ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS) & ~ENABLE_QUICK_EDIT_MODE;
-    SetConsoleMode(hStdin, fdwMode);
-    INPUT_RECORD inp[10240];
-    int buf_idx = 0;
-#endif
+//#ifdef _WINDOWS
+//    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+//    //DWORD fdwMode = (ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS) & ~ENABLE_QUICK_EDIT_MODE;
+//    DWORD fdwMode = (ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS | ENABLE_QUICK_EDIT_MODE);
+//    SetConsoleMode(hStdin, fdwMode);
+//    INPUT_RECORD inp[10240];
+//    int buf_idx = 0;
+//#endif
 
     _wait_ms = 1500;
     while(_go_on) {
         char *s = nullptr;
         bool have_line = false;
 #ifdef _WINDOWS
+        char buffer[10240];
+        fgets(buffer, 10240, stdin);
+
+        std::string line = buffer;
+        trim(line);
+        if (line != "") {
+            haveALine(line);
+        }
+
+        /*
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         DWORD nr_events = 0;
         bool ok = GetNumberOfConsoleInputEvents(hStdin, &nr_events);
@@ -105,6 +119,7 @@ void ReadLineInThread::run()
                 }
             }
         }
+        */
 #else
         fd_set          read_set;
         struct timeval  tv;

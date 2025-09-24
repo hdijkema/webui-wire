@@ -7,6 +7,8 @@
 #include "webui_wire.h"
 #include "webwireprofile.h"
 #include "webuiwindow.h"
+#include "asio/io_context.hpp"
+#include "asio/ip/tcp.hpp"
 
 static std::regex re_serve("^[/]([^/]+)[/](.*)$");
 //static std::regex re_serve("^[/](.*)$");
@@ -72,14 +74,32 @@ static bool isHTML(const char *_buf, int max_search)
    return false;
 }
 
+using asio::ip::tcp;
+
 void HttpServer_t::run_http_server()
 {
     crow::SimpleApp *_app = new crow::SimpleApp();
     crow::SimpleApp &app = *_app;
     _crow_app = static_cast<void *>(_app);
 
-    CROW_CATCHALL_ROUTE(app)([this](const crow::request &r) {
+    CROW_CATCHALL_ROUTE(app)([this, &app](const crow::request &r) {
         this->serverLog("Serving: " + r.url);
+        //this->isValidEndpoint(reinterpret_cast<void *>(const_cast<crow::request *>(&r)));
+
+        auto a = r.socket_adaptor;
+        int port = a->port();
+        int pp = a->remote_endpoint().port();
+
+        this->serverLog("remote address:" + r.remote_ip_address + " - " + asprintf("%d", port));
+
+        //tcp::socket s(*r.io_context);
+
+        //asio::error_code ec;
+        //auto re = s.remote_endpoint(ec);
+
+//        auto adr = r.remote_endpoint.address();
+//        auto p = r.remote_endpoint.port();
+ //       auto pr = r.remote_endpoint.protocol();
 
         std::string u = trim_copy(r.url);
 
@@ -97,6 +117,9 @@ void HttpServer_t::run_http_server()
 
         std::smatch m;
         std::regex_match(r.url, m, re_serve);
+
+        //auto cr = crow::response();
+        //bool b = cr.is_alive();
 
         if (m.empty()) {
             this->serverLog("r.url does not match re_serve");
@@ -197,6 +220,22 @@ void HttpServer_t::run_http_server()
 void HttpServer_t::serverLog(std::string msg)
 {
     emit(evt_httpserver_log << msg);
+}
+
+bool HttpServer_t::isValidEndpoint(void *crow_req)
+{
+    crow::request *req = static_cast<crow::request *>(crow_req);
+
+    //req->remote_ip_address
+    //    req->
+    //const asio::io_context *c = req->io_context;
+    //asio::io_context &context = *(req->io_context);
+    //asio::ip::tcp::socket s(context);
+    //asio::ip::tcp::endpoint p = s.remote_endpoint();
+    //asio::ip::address adr = p.address();
+    //asio::ip::port_type port = p.port();
+    //serverLog(std::string("request from address: " + adr.to_string() + ":" + asprintf("%d", port)));
+    return true;
 }
 
 void HttpServer_t::start()

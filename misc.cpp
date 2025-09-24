@@ -13,9 +13,6 @@ std::string asprintf(const char *fmt_str, ...)
     return s;
 }
 
-
-
-
 #ifdef _WIN32
 #include <windows.h>
 const DWORD MS_VC_EXCEPTION=0x406D1388;
@@ -82,3 +79,10 @@ void setThreadName(std::thread *thr, std::string name)
     SetThreadName(thr, name.c_str());
 }
 
+
+void terminateThread(std::thread *thr)
+{
+#ifdef _WINDOWS
+  TerminateThread(thr->native_handle(), 0);
+#endif
+}

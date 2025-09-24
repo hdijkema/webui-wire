@@ -11,7 +11,6 @@ class CustomLogger;
 #define id_httpserver_log       "httpserver-serverlog"
 #define evt_httpserver_log      Event_t(id_httpserver_log, this)
 
-
 class HttpServer_t : public Object_t
 {
 private:
@@ -26,6 +25,9 @@ private:
 
 public:
     void serverLog(std::string msg);
+
+public:
+    bool isValidEndpoint(void * crow_req);
 
 public:
     void start();

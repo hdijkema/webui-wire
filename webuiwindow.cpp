@@ -4,6 +4,12 @@
 #include "fileinfo_t.h"
 #include "misc.h"
 #include "execjs.h"
+#include "webwireprofile.h"
+#include "httpresponse_t.h"
+#include "mimetypes_t.h"
+#include <regex>
+
+#define WEBWIREHANDLER ((Application_t::current() == nullptr) ? nullptr : (Application_t::current()->handler()))
 
 static wwhash<size_t, WebUIWindow *> _windows;
 
@@ -12,18 +18,22 @@ static WebUIWindow *get_webui_window(size_t webui_win)
     if (_windows.contains(webui_win)) {
         return _windows[webui_win];
     } else {
-        WebWireHandler *h = Application_t::current()->handler();
-        h->error(asprintf("Did not find webui %d", webui_win));
+        WebWireHandler *h = WEBWIREHANDLER;
+        if (h != nullptr) {
+            h->error(asprintf("Did not find webui %d", webui_win));
+        }
         return nullptr;
     }
 }
 
 static void web_ui_wire_handle_event(webui_event_t *e)
 {
-    WebWireHandler *h = Application_t::current()->handler();
-    h->message(asprintf("web-ui-wire-handle-event: %d, %s", e->window, e->element));
-    WebUIWindow *win = get_webui_window(e->window);
-    if (win != nullptr) win->handleWireEvent(e);
+    WebWireHandler *h = WEBWIREHANDLER;
+    if (h != nullptr) {
+        h->message(asprintf("web-ui-wire-handle-event: %d, %s", e->window, e->element));
+        WebUIWindow *win = get_webui_window(e->window);
+        if (win != nullptr) win->handleWireEvent(e);
+    }
 }
 
 static void web_ui_wire_handle_resize(webui_event_t *e)
@@ -48,6 +58,18 @@ static bool web_ui_wire_on_close(size_t window)
     }
 }
 
+static const void *web_ui_wire_files_handler(size_t window, const char *filename, int* length)
+{
+    fprintf(stderr, "%s\n", filename);
+    WebUIWindow *win = get_webui_window(window);
+    if (win != nullptr) {
+        return win->filesHandler(filename, length);
+    } else {
+        *length = 0;
+        return nullptr;
+    }
+}
+
 static void webui_event_handler(webui_event_t *e)
 {
     size_t webui_win = e->window;
@@ -55,9 +77,50 @@ static void webui_event_handler(webui_event_t *e)
         WebUIWindow *win = _windows[webui_win];
         win->webuiEvent(e);
     } else {
-        WebWireHandler *h = Application_t::current()->handler();
-        h->error(asprintf("Did not find webui %d", webui_win));
+        WebWireHandler *h = WEBWIREHANDLER;
+        if (h != nullptr) {
+            h->error(asprintf("Did not find webui %d", webui_win));
+        }
     }
+}
+
+#ifdef _WINDOWS
+#define strnicmp _strnicmp
+#endif
+
+static bool isHTML(const char *_buf, int max_search)
+{
+    bool h = false;
+    int i = 0;
+    const unsigned char *buf = reinterpret_cast<const unsigned char*>(_buf);
+    while (buf[i] != '\0' && isspace(buf[i]) && i < max_search) {
+        i++;
+    }
+
+    if (buf[i] == '\0' || i >= max_search) return false;
+    if (strnicmp(&_buf[i], "<html", 5) == 0) return true;
+
+    if (strnicmp(&_buf[i], "<!", 2) == 0) {
+        i += 2;
+        while (buf[i] != '\0' && isspace(buf[i]) && i < max_search) { i++; }
+        if (buf[i] == '\0' || i >= max_search) return false;
+        if (strnicmp(&_buf[i], "DOCTYPE", 7) == 0) {
+            i += 7;
+            while (buf[i] != '\0' && isspace(buf[i]) && i < max_search) { i++; }
+            if (buf[i] == '\0' || i >= max_search) return false;
+            if (strnicmp(&_buf[i], "html", 4) == 0) return true;
+        }
+    }
+
+    return false;
+}
+
+
+int WebUIWindow::newHandle()
+{
+    _handle_counter++;
+    int handle = (((_handle_counter * 1000) + _win) * 1000) + _webui_win;
+    return handle;
 }
 
 std::string WebUIWindow::baseUrl()
@@ -65,7 +128,15 @@ std::string WebUIWindow::baseUrl()
     //return asprintf("http://127.0.0.1:%d/", webui_get_port(_webui_win));
     //return asprintf("http://127.0.0.1:%d/", _handler->port());
     //return _handler->serverUrl() + _profile + "/";
-    return _handler->serverUrl() + asprintf("%d/", _win);
+    //return _handler->serverUrl() + asprintf("%d/", _win);
+    //return asprintf("http://127.0.0.1:%d/%d/", webui_get_port(_webui_win), _win);
+    int port = webui_get_port(_win);
+    _handler->message(asprintf("port = %d", port));
+    std::string url = asprintf("%s", webui_get_url(_win));
+    _handler->message("webui_get_url = " + url);
+    _handler->message("_base_url = " + _base_url);
+    std::string burl = _base_url + "/"; // + asprintf("%d/", _win);
+    return burl;
 }
 
 size_t WebUIWindow::webuiWin()
@@ -83,9 +154,35 @@ std::string WebUIWindow::rootFolder()
     return _root_dir;
 }
 
-void WebUIWindow::setWindowIcon(const FileInfo_t &icn_file)
+void WebUIWindow::setWindowIcon(const std::string &icn_file)
 {
-
+    FileInfo_t fi(icn_file);
+    if (fi.exists() && fi.isReadable() && fi.ext() == "svg") {
+        MimeTypes_t m(_handler);
+        std::string type = m.mimetypeByExt(fi.ext());
+        int size = fi.size();
+        FILE *f;
+#ifdef _WINDOWS
+        fopen_s(&f, icn_file.c_str(), "rb");
+#else
+        f = fopen(icn_file.c_str(), "rb");
+#endif
+        if (f) {
+            char *buf = static_cast<char *>(malloc(size));
+            if (buf) {
+                fread(buf, size, 1, f);
+                webui_set_icon(_webui_win, buf, type.c_str());
+                free(buf);
+            }
+            fclose(f);
+        }
+    } else if (fi.ext() != "svg") {
+        _handler->warning("setWindowIcon can currently only handle SVG files");
+    } else if (!fi.isReadable()) {
+        _handler->error("setWindowIcon: file is not readable: " + icn_file);
+    } else {
+        _handler->error("setWindowIcon: file does not exist: " + icn_file);
+    }
 }
 
 void WebUIWindow::setWindowTitle(const std::string &title)
@@ -112,8 +209,9 @@ void WebUIWindow::close()
             }
         }
 #endif
-        //webui_close(_webui_win);
-        webui_destroy(_webui_win);
+        webui_close(_webui_win);
+        //webui_wait();
+        //webui_destroy(_webui_win);
         //webui_set_hide(_webui_win, true);
     }
 }
@@ -133,6 +231,134 @@ void WebUIWindow::move(int x, int y)
 void WebUIWindow::resize(int w, int h)
 {
     webui_set_size(_webui_win, w, h);
+}
+
+std::string WebUIWindow::standardMessage()
+{
+    WinInfo_t *i = _handler->getWinInfo(_win);
+
+    std::string profile_scripts;
+    if (i != nullptr) {
+        profile_scripts = i->profile->scriptsTag();
+    }
+
+    std::string webui_js = asprintf("/webui.js");
+    std::string window = asprintf("%d", _win);
+
+
+    std::string standard_msg = "<!DOCTYPE html>\n"
+                               "<html>\n"
+                               "<head>\n"
+                               "<script>\n"
+                               "window._page_handle = " + asprintf("%d", _current_handle) + ";\n"
+                               "</script>\n"
+                               "<script src=\"" + webui_js + "\"></script>\n" +
+                               profile_scripts +
+                               "<title>Web UI Wire: " WEB_WIRE_VERSION "</title>\n"
+                               "</head>\n"
+                               "<body><p>Web UI Wire:" WEB_WIRE_VERSION "</p>\n"
+                               "<p>" WEB_WIRE_COPYRIGHT "</p>\n"
+                               "<p> License: " WEB_WIRE_LICENSE "</p>\n"
+                               "<p> Window: " + window + "</p>\n"
+                               "</body>\n"
+                               "</html>";
+    return standard_msg;
+}
+
+const void *WebUIWindow::filesHandler(const char *url_path, int *length)
+{
+    _handler->message(std::string("Serving url path: ") + url_path);
+    std::regex re("[/](.*)");
+    std::smatch m;
+    std::string file_path = url_path;
+    std::regex_search(file_path, m, re);
+
+    WinInfo_t *i = _handler->getWinInfo(_win);
+    std::string profile_scripts;
+    if (i != nullptr) {
+        profile_scripts = i->profile->scriptsTag();
+    }
+
+    Timer_t *t = _handler->getTimer(_win);
+    if (t != nullptr) {
+        t->reset();
+    }
+
+    std::string webui_js = "/webui.js";
+    std::string window = asprintf("%d", _win);
+
+    std::string file = (m.empty()) ? "" : trim_copy(m[1].str());
+
+    if (file == "") {
+        std::string standard_msg = standardMessage();
+        HttpResponse_t resp(_handler, 200);
+        resp.setContentType("text/html");
+        resp.setContent(standard_msg);
+        return resp.response(*length);
+    } else {
+        FileInfo_t fi(file);
+        HttpResponse_t resp(_handler);
+        if (fi.exists() && fi.isReadable()) {
+            size_t file_size = fi.size();
+            int max_search = (file_size > 1024) ? 1024 : file_size;
+#ifdef _WINDOWS
+            FILE *f;
+            fopen_s(&f, file.c_str(), "rb");
+#else
+            FILE *f = fopen(file.c_str(), "rb");
+#endif
+            char *buffer = static_cast<char *>(malloc(max_search + 1));
+            fread(buffer, max_search, 1, f);
+            buffer[max_search] = '\0';
+            std::string content_type;
+            if (fi.ext() == "html" || fi.ext() == "htm" || isHTML(buffer, max_search)) {
+                buffer = static_cast<char *>(realloc(buffer, file_size + 1));
+                fread(buffer + max_search, file_size - max_search, 1, f);
+                fclose(f);
+                buffer[file_size] = '\0';
+
+                std::string body(buffer);
+                free(buffer);
+                body = replace(body, "<head>", "<head>\n"
+                                               "<script>\n"
+                                               "window._page_handle = " + asprintf("%d", _current_handle) + ";\n"
+                                               "</script>\n"
+                                               "<script src=\"" + webui_js + "\"></script>\n"
+                                               + profile_scripts
+                               );
+                content_type = "text/html";
+
+                resp.setContentType(content_type);
+                resp.setResponseCode(200);
+                resp.setContent(body);
+            } else {
+                fclose(f);
+                free(buffer);
+                resp.setFile(file);
+            }
+            return resp.response(*length);
+        } else if (file.rfind("favicon.", 0) == 0) {
+            return nullptr;
+        } else {
+            HttpResponse_t resp(_handler, 404);
+            resp.setContentType("text/html");
+            resp.setContent("<!DOCTYPE html>\n"
+                           "<html>\n"
+                           "<head>\n"
+                           "<script>\n"
+                            "window._page_handle = " + asprintf("%d", _current_handle) + ";\n"
+                           "</script>\n"
+                           "<script src=\"" + webui_js + "\"></script>\n" +
+                           profile_scripts +
+                           "</head>"
+                           "<body><p>Web UI Wire:" WEB_WIRE_VERSION "</p>"
+                           "<p>Not found: " + file + "</p>"
+                            "</body>"
+                            "</html>"
+                          );
+            return resp.response(*length);
+        }
+    }
 }
 
 /*
@@ -161,7 +387,7 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
     } else if (e->event_type == WEBUI_EVENT_DISCONNECTED) {
         _handler->message(asprintf("Window %d (%d) disconnected - clientid = %d", _win, _webui_win, e->client_id));
         _disconnected = true;
-        if (!_closing) {
+        if (!_closing && !_in_set_html_or_url) {
             Timer_t *t = _handler->getTimer(_win);
             if (t != nullptr) {
                 t->setSingleShot(true);
@@ -175,12 +401,18 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
         return;
     } else if (e->event_type == WEBUI_EVENT_NAVIGATION) {
         const char* url = webui_get_string(e);
-        std::string r_u = replace(url, "\"", "\\\"");
+        std::string r_u = url; //replace(url, "\"", "\\\"");
         std::string kind = "set-url";
         if (r_u.rfind(baseUrl(), 0) == 0) {
             kind = "set-html";
+            r_u = r_u.substr(baseUrl().length());
+
         }
-        _handler->evt(asprintf("navigate:%d:%s:%s:%s", e->window, url, "standard", kind.c_str()));
+        json j;
+        j["url"] = r_u;
+        j["navigation-type"] = "standard";
+        j["navigation-kind"] = kind;
+        _handler->evt(asprintf("navigate:%d:%s", _win, j.dump().c_str()));
         return;
     }
     _handler->message(asprintf("webui-event: %s: %d %d", e->element, e->event_type, e->event_number));
@@ -189,7 +421,9 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
 void WebUIWindow::handleWireEvent(webui_event_t *e)
 {
     std::string event = webui_get_string(e);
-    _handler->evt(event);
+    json j = json::parse(event);
+    std::string evt = j["evt"];
+    _handler->evt(evt + ":" + asprintf("%d", _win) + ":" + event);
 }
 
 void WebUIWindow::handleResizeEvent(webui_event_t *e)
@@ -206,7 +440,7 @@ void WebUIWindow::handleMoveEvent(webui_event_t *e)
     _handler->windowMoved(_win, x, y);
 }
 
-WebUIWindow::WebUIWindow(WebWireHandler *h, int win, const std::string &p, WebUIWindow *parent_win, Object_t *parent)
+WebUIWindow::WebUIWindow(WebWireHandler *h, int win, const std::string &p, bool use_browser, WebUIWindow *parent_win, Object_t *parent)
     : Object_t(parent)
 {
     _win = win;
@@ -215,26 +449,49 @@ WebUIWindow::WebUIWindow(WebWireHandler *h, int win, const std::string &p, WebUI
     _profile = p;
     _ww_profile = nullptr;
     _closing = false;
+    _in_set_html_or_url = false;
     _win_handle = NULL;
-    _use_browser = false;
+    _use_browser = use_browser;
     _handler = h;
     _parent_win = parent_win;
     _disconnected = false;
+    _current_handle = -1;
+    _handle_counter = 0;
 
     _webui_win = webui_new_window();
     h->message(asprintf("_webui_win = %d", _webui_win));
     _windows[_webui_win] = this;
 
+    webui_set_file_handler_window(_webui_win, web_ui_wire_files_handler);
     webui_set_close_handler(_webui_win, web_ui_wire_on_close);
+    webui_set_icon(_webui_win, _default_favicon, "image/svg+xml");
 
     webui_bind(_webui_win, "", webui_event_handler);
     webui_bind(_webui_win, "web_ui_wire_handle_event", web_ui_wire_handle_event);
     webui_bind(_webui_win, "web_ui_wire_resize_event", web_ui_wire_handle_resize);
     webui_bind(_webui_win, "web_uit_wire_move_event", web_ui_wire_handle_move);
 
-    _webui_port = _handler->serverPort() + _win;
-    _handler->message(asprintf("webui_set_port %d", _webui_port));
-    webui_set_port(_webui_win, _webui_port);
+
+    //show(standardMessage());
+
+    std::string root_path = "/";
+    _base_url = webui_start_server(_webui_win, root_path.c_str());
+    //_base_url = webui_get_url(_webui_win);
+    //int prt = webui_get_port(_webui_win);
+    _handler->message("webui reports url : " + _base_url);
+    //_handler->message(asprintf("webui reports port: %d", prt));
+    std::regex re("[^:]+[:]([0-9]+)");
+    std::smatch m;
+    std::regex_search(_base_url, m, re);
+    if (!m.empty()) {
+        _base_url = std::string("http://127.0.0.1:") + m[1].str();
+    }
+
+    show(_base_url);
+
+    //_webui_port = _handler->serverPort() + _win;
+    //_handler->message(asprintf("webui_set_port %d", _webui_port));
+    //webui_set_port(_webui_win, _webui_port);
 }
 
 WebUIWindow::~WebUIWindow()
@@ -251,6 +508,56 @@ void WebUIWindow::useBrowser(bool y)
     }
 }
 
+void WebUIWindow::setShowState(WebUiWindow_ShowState st)
+{
+    if (st == hidden) {
+#ifdef _WINDOWS
+        HWND handle = this->nativeHandle();
+        ShowWindow(handle, SW_HIDE);
+#else
+#endif
+    } else if (st == shown) {
+#ifdef _WINDOWS
+        HWND handle = this->nativeHandle();
+        ShowWindow(handle, SW_SHOW);
+#else
+#endif
+    } else if (st == minimized) {
+        webui_minimize(_webui_win);
+    } else if (st == maximized) {
+        webui_maximize(_webui_win);
+    } else if (st == normal) {
+#ifdef _WINDOWS
+        HWND handle = this->nativeHandle();
+        ShowWindow(handle, SW_SHOWNORMAL);
+#else
+#endif
+    }
+}
+
+int WebUIWindow::showState()
+{
+#ifdef _WINDOWS
+    HWND handle = this->nativeHandle();
+    int v = 0;
+    if (IsWindowVisible(handle)) {
+        v = WebUiWindow_ShowState::shown;
+    }
+
+    if (IsIconic(handle)) {
+        v += WebUiWindow_ShowState::minimized;
+    } else if (IsZoomed(handle)) {
+        v += WebUiWindow_ShowState::maximized;
+    } else {
+        v += WebUiWindow_ShowState::normal;
+    }
+
+    return v;
+#else
+    return shown;
+#endif
+}
+
 bool WebUIWindow::disconnected()
 {
     return _disconnected;
@@ -261,8 +568,11 @@ HWND WebUIWindow::nativeHandle()
     return _win_handle;
 }
 
-void WebUIWindow::show(const std::string &msg_or_url)
+int WebUIWindow::show(const std::string &msg_or_url)
 {
+    int handle = newHandle();
+    _in_set_html_or_url = true;
+    _current_handle = handle;
     if (_use_browser) {
         webui_show_browser(_webui_win, msg_or_url.c_str(), webui_browser::ChromiumBased);
     } else {
@@ -278,27 +588,137 @@ void WebUIWindow::show(const std::string &msg_or_url)
         }
     }
 #endif
+    _in_set_html_or_url = false;
+    return handle;
 }
 
-void WebUIWindow::showIfNotShown()
+int WebUIWindow::showIfNotShown()
 {
     if (!webui_is_shown(_webui_win)) {
-        show(baseUrl());
+        return show(baseUrl());
     }
+    return -1;
 }
 
-void WebUIWindow::setUrl(const upa::url &u)
+int WebUIWindow::setUrl(const upa::url &u)
 {
     std::string s_u = u.to_string();
 
     if (!webui_is_shown(_webui_win)) {
-        show(baseUrl());
+        return show(baseUrl());
     }
 
+    int handle = newHandle();
     webui_navigate(_webui_win, s_u.c_str());
+    return handle;
 }
 
-void WebUIWindow::setHtml(std::string url)
+int WebUIWindow::setHtml(std::string url)
 {
-    show(url);
+    return show(url);
 }
+
+
+const char *WebUIWindow::_default_favicon =
+    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+    "<svg\n"
+    "   width=\"512\"\n"
+    "   height=\"512\"\n"
+    "   viewBox=\"0 0 135.46666 135.46667\"\n"
+    "   version=\"1.1\"\n"
+    "   id=\"svg5\"\n"
+    "   xml:space=\"preserve\"\n"
+    "   inkscape:version=\"1.2.2 (b0a8486541, 2022-12-01)\"\n"
+    "   sodipodi:docname=\"icon.svg\"\n"
+    "   inkscape:export-filename=\"icon.png\"\n"
+    "   inkscape:export-xdpi=\"96\"\n"
+    "   inkscape:export-ydpi=\"96\"\n"
+    "   xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\"\n"
+    "   xmlns:sodipodi=\"http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd\"\n"
+    "   xmlns:xlink=\"http://www.w3.org/1999/xlink\"\n"
+    "   xmlns=\"http://www.w3.org/2000/svg\"\n"
+    "   xmlns:svg=\"http://www.w3.org/2000/svg\"><sodipodi:namedview\n"
+    "     id=\"namedview7\"\n"
+    "     pagecolor=\"#ffffff\"\n"
+    "     bordercolor=\"#000000\"\n"
+    "     borderopacity=\"0.25\"\n"
+    "     inkscape:showpageshadow=\"2\"\n"
+    "     inkscape:pageopacity=\"0.0\"\n"
+    "     inkscape:pagecheckerboard=\"0\"\n"
+    "     inkscape:deskcolor=\"#d1d1d1\"\n"
+    "     inkscape:document-units=\"mm\"\n"
+    "     showgrid=\"false\"\n"
+    "     inkscape:zoom=\"1.829812\"\n"
+    "     inkscape:cx=\"278.17065\"\n"
+    "     inkscape:cy=\"409.33167\"\n"
+    "     inkscape:window-width=\"2232\"\n"
+    "     inkscape:window-height=\"1808\"\n"
+    "     inkscape:window-x=\"756\"\n"
+    "     inkscape:window-y=\"210\"\n"
+    "     inkscape:window-maximized=\"0\"\n"
+    "     inkscape:current-layer=\"layer1\" /><defs\n"
+    "     id=\"defs2\"><rect\n"
+    "       x=\"149.77185\"\n"
+    "       y=\"134.79895\"\n"
+    "       width=\"49.260365\"\n"
+    "       height=\"71.158693\"\n"
+    "       id=\"rect474\" /><clipPath\n"
+    "       id=\"a\"><path\n"
+    "         d=\"M 2,1 H 15 V 33 H 28 V 17 h 13 v 48 h 13 v 64 H 2 Z\"\n"
+    "         id=\"path587\" /></clipPath></defs><g\n"
+    "     inkscape:label=\"Laag 1\"\n"
+    "     inkscape:groupmode=\"layer\"\n"
+    "     id=\"layer1\"><rect\n"
+    "       style=\"fill:#333333;stroke:#1a1a1a;stroke-width:0.609071\"\n"
+    "       id=\"rect1000\"\n"
+    "       width=\"134.77257\"\n"
+    "       height=\"134.8334\"\n"
+    "       x=\"0.43407014\"\n"
+    "       y=\"0.49147958\"\n"
+    "       ry=\"25.336727\" /><g\n"
+    "       transform=\"matrix(3.9029613,0,0,-3.9029613,-1025.5226,337.56542)\"\n"
+    "       id=\"g4677\" /><g\n"
+    "       clip-path=\"url(#a)\"\n"
+    "       id=\"g661\"\n"
+    "       transform=\"matrix(0,-0.77086785,-0.90514765,0,125.60251,128.00586)\"><g\n"
+    "         id=\"f\"><path\n"
+    "           d=\"M 2.75,34.6438 V 46.3 h 8.24375 V 34.6438 Z m 0,16 V 62.3 h 8.24375 V 50.6438 Z m 0,16 V 78.3 h 8.24375 V 66.6438 Z\"\n"
+    "           fill=\"#ffff01\"\n"
+    "           id=\"path648\" /><path\n"
+    "           d=\"M 2.75,82.6438 V 94.3 h 8.24375 V 82.6438 Z m 0,16 V 110.3 h 8.24375 V 98.6438 Z m 0,16 V 126.3 h 8.24375 v -11.6562 z\"\n"
+    "           fill=\"#2ea02a\"\n"
+    "           id=\"path650\" /><path\n"
+    "           d=\"m 2.75,2.8625 v 11.6562 h 8.24375 V 2.8625 Z m 0,15.7812 v 11.6562 h 8.24375 V 18.6437 Z\"\n"
+    "           fill=\"#ff0000\"\n"
+    "           id=\"path652\" /></g><use\n"
+    "         height=\"130\"\n"
+    "         transform=\"translate(13)\"\n"
+    "         width=\"265\"\n"
+    "         xlink:href=\"#f\"\n"
+    "         id=\"use655\" /><use\n"
+    "         height=\"130\"\n"
+    "         transform=\"translate(26)\"\n"
+    "         width=\"265\"\n"
+    "         xlink:href=\"#f\"\n"
+    "         id=\"use657\" /><use\n"
+    "         height=\"130\"\n"
+    "         transform=\"translate(39)\"\n"
+    "         width=\"265\"\n"
+    "         xlink:href=\"#f\"\n"
+    "         id=\"use659\" /></g><text\n"
+    "       xml:space=\"preserve\"\n"
+    "       transform=\"scale(0.26458333)\"\n"
+    "       id=\"text472\"\n"
+    "       style=\"white-space:pre;shape-inside:url(#rect474);display:inline;fill:#ffffff;stroke:#1a1a1a;stroke-width:2.302\" /><text\n"
+    "       xml:space=\"preserve\"\n"
+    "       style=\"font-size:51.0415px;fill:#9cffff;fill-opacity:1;stroke:#437dce;stroke-width:1.46472;stroke-dasharray:none;stroke-opacity:1\"\n"
+    "       x=\"15.069036\"\n"
+    "       y=\"61.443043\"\n"
+    "       id=\"text1176\"\n"
+    "       transform=\"scale(0.85145276,1.1744633)\"><tspan\n"
+    "         sodipodi:role=\"line\"\n"
+    "         id=\"tspan1174\"\n"
+    "         style=\"fill:#9cffff;fill-opacity:1;stroke:#437dce;stroke-width:1.46472;stroke-dasharray:none;stroke-opacity:1\"\n"
+    "         x=\"15.069036\"\n"
+    "         y=\"61.443043\">Yeah!</tspan></text></g></svg>\n"
+    "\n";

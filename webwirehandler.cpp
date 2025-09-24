@@ -93,8 +93,6 @@ defun(cmdSetHtml)
     if (check("set-html", var(t_int, win) << var(t_string, file))) {
         checkWin;
 
-        WinInfo_t *i = h->getWinInfo(win);
-
         FileInfo_t f(file);
         if (f.exists()) {
             if (!f.isReadable()) {
@@ -112,8 +110,8 @@ defun(cmdSetHtml)
                 std::string p_url = u.to_string();
                 h->message(std::string("requesting: ") + p_url);
 
-                 w->setHtml(p_url);
-                r_ok(asprintf("set-html:%d", win));
+                int handle = w->setHtml(p_url);
+                r_ok(asprintf("set-html:%d:%d", win, handle));
             }
         } else {
             r_err(asprintf("set-html:%d:file ", win) + file + " does not exist");
@@ -397,7 +395,7 @@ defun(cmdElementInfo)
         h->execJs(win, js, ok, result, "element-info");
         if (ok) {
             id = ExecJs::esc_dquote(id);
-            r_ok(asprintf("element-info:%d:", win) + id + ":" + ExecJs::esc_dquote(result));
+            r_ok(asprintf("element-info:%d:", win) + ExecJs::esc_dquote(result));
         } else {
             r_nok(asprintf("element-info:%d:", win) + id);
         }
@@ -421,14 +419,14 @@ defun(cmdValue)
         if (val == dummy) {
             js_value = "{"
                        "   let el = document.getElementById('" + _id + "');"
-                       "   el.value;"
+                       "   return el.value;"
                        "}";
         } else {
             val = replace(val, "'", "\\'");
             js_value = "{"
                        "   let el = document.getElementById('" + _id + "');"
                        "   el.value = '" + val + "';"
-                       "   el.value;"
+                       "   return el.value;"
                        "}";
         }
         bool ok;
@@ -470,7 +468,7 @@ defun(cmdAddClass)
                         "el.setAttribute('class', cl);"
                     ) + "}";
 
-        bool ok;
+        h->execJs(win, js, "add-class");
         r_ok(asprintf("add-class:%d", win));
     }
 }
@@ -574,8 +572,8 @@ defun(cmdSetShowState)
     if (check("set-show-state", var(t_int, win) << var(t_string, state))) {
         checkWin;
 
-        if (state != "minimize" && state != "maximize" && state != "normalize" &&
-            state != "show" && state != "hide" && state != "fullscreen") {
+        if (state != "minimized" && state != "maximized" && state != "normal" &&
+            state != "shown" && state != "hidden") { // && state != "fullscreen") {
             r_err(asprintf("set-show-state:%d:", win) + std::string("State '") + state + "' is not correct");
             r_nok(asprintf("set-show-state:%d", win));
         } else {
@@ -630,7 +628,7 @@ defun(cmdSetIcon)
         FileInfo_t f(icon_file);
         if (f.exists() && f.isReadable()) {
             //QIcon icn(icon_file);
-            h->setWindowIcon(win, f);
+            h->setWindowIcon(win, icon_file);
             r_ok(asprintf("set-icon:%d", win));
         } else {
             if (!f.exists()) {
@@ -715,9 +713,10 @@ defun(cmdNewWindow)
     std::string profile;
     int parent_win_id = -1;
     int win = 0;
-    if (check("new", var(t_string, profile) << opt(t_int, parent_win_id, -1))) {
-        int win = h->newWindow(profile, parent_win_id);
-        r_ok(asprintf("new:%d", win));
+    bool in_browser = false;
+    if (check("new", var(t_string, profile) << opt(t_bool, in_browser, false) << opt(t_int, parent_win_id, -1))) {
+        int win = h->newWindow(profile, in_browser, parent_win_id);
+        r_ok(asprintf("new:%d:%d", win, win));
     }
 }
 
@@ -741,13 +740,46 @@ defun(cmdCwd)
             std::filesystem::current_path(cwd, ec);
         }
         std::string d = std::filesystem::current_path().string();
-        r_ok("cwd:\"" + d + "\"");
+        r_ok("cwd:0:\"" + d + "\"");
     }
 }
 
 defun(cmdProtocol)
 {
-    r_ok(asprintf("protocol:%s", WEB_WIRE_PROTOCOL_VERSION));
+    json j;
+    r_ok(asprintf("protocol:0:%d", WEB_WIRE_PROTOCOL_VERSION));
+}
+
+defun(cmdLogLevel)
+{
+    std::string level;
+    int win = 0;
+    if (check("log-level", opt(t_string, level, ""))) {
+        std::string l = lcase(trim_copy(level));
+        WebWireLogLevel_t lvl;
+
+        if (l == "") { lvl = h->logLevel();
+            if (lvl == WebWireLogLevel_t::debug) { l = "debug"; }
+            else if (lvl == WebWireLogLevel_t::info) { l = "info"; }
+            else if (lvl == WebWireLogLevel_t::warning) { l = "warning"; }
+            else if (lvl == WebWireLogLevel_t::error) { l = "error"; }
+            else if (lvl == WebWireLogLevel_t::fatal) { l = "fatal"; }
+            else if (lvl == WebWireLogLevel_t::debug_detail) { l = "detail"; }
+        }
+        else if (l == "debug") { lvl = WebWireLogLevel_t::debug; }
+        else if (l == "info") { lvl = WebWireLogLevel_t::info; }
+        else if (l == "warning") { lvl = WebWireLogLevel_t::warning; }
+        else if (l == "error") { lvl = WebWireLogLevel_t::error; }
+        else if (l == "fatal") { lvl = WebWireLogLevel_t::fatal; }
+        else if (l == "detail") { lvl = WebWireLogLevel_t::debug_detail; }
+        else {
+            r_nok("log-level:Unknown log level '" + l + "'");
+            return;
+        }
+
+        h->setLogLevel(lvl);
+        r_ok("loglevel:0:" + l);
+    }
 }
 
 defun(cmdSetStylesheet)
@@ -759,9 +791,9 @@ defun(cmdSetStylesheet)
             json j = json::parse(json_css);
             std::string css = j["css"];
             h->setStylesheet(css);
-            r_ok(std::string("set-stylesheet:done"));
+            r_ok(std::string("set-stylesheet:0:done"));
         } catch(json::parse_error e) {
-            r_nok(std::string("set-stylesheet:error") + e.what());
+            r_nok(std::string("set-stylesheet:0:error") + e.what());
         }
     }
 }
@@ -772,7 +804,7 @@ defun(cmdGetStyleheet)
     json j;
     j["css"] = css;
     std::string js = j.dump();
-    r_ok(std::string("get-stylesheet:") + js);
+    r_ok(std::string("get-stylesheet:0:") + js);
 }
 
 defun(cmdHelp)
@@ -797,7 +829,7 @@ defun(cmdHelp)
     msg("");
     msg("exit - exit web racket");
 
-    r_ok("help:given");
+    r_ok("help::0:given");
 }
 
 
@@ -849,6 +881,7 @@ void WebWireHandler::processCommand(const std::string &cmd, const std::stringlis
     efun("file-save", cmdFileSave)
     efun("choose-dir", cmdChooseDir)
     efun("use-browser", cmdUseBrowser)
+    efun("loglevel", cmdLogLevel)
     else {
         WebWireHandler *h = this;
         r_err(asprintf("Unknown command '%s'", cmd.c_str()));
@@ -968,6 +1001,16 @@ std::stringlist WebWireHandler::splitArgs(std::string l)
     }*/
 
     return r;
+}
+
+WebWireLogLevel_t WebWireHandler::logLevel()
+{
+    return _min_log_level;
+}
+
+void WebWireHandler::setLogLevel(WebWireLogLevel_t l)
+{
+    _min_log_level = l;
 }
 
 void WebWireHandler::processInput(const std::string &line, std::string *ok_msg)
@@ -1140,7 +1183,9 @@ void WebWireHandler::log(FILE *fh, FILE *log_fh, const char *kind, const char *m
 
 void WebWireHandler::error(const std::string &msg)
 {
-    emit(evt_handler_log << stderr << "ERR" << msg );
+    if (_min_log_level <= WebWireLogLevel_t::error) {
+        emit(evt_handler_log << stderr << "ERR" << msg );
+    }
 }
 
 void WebWireHandler::evt(const std::string &msg)
@@ -1150,17 +1195,30 @@ void WebWireHandler::evt(const std::string &msg)
 
 void WebWireHandler::message(const std::string &msg)
 {
-    emit(evt_handler_log << stderr << "MSG" << msg);
+    if (_min_log_level <= WebWireLogLevel_t::info) {
+        emit(evt_handler_log << stderr << "MSG" << msg);
+    }
 }
 
 void WebWireHandler::warning(const std::string &msg)
 {
-    emit(evt_handler_log << stderr << "WARN" << msg);
+    if (_min_log_level <= WebWireLogLevel_t::warning) {
+        emit(evt_handler_log << stderr << "WARN" << msg);
+    }
 }
 
 void WebWireHandler::debug(const std::string &msg)
 {
-    emit(evt_handler_log << stderr << "DBG" << msg);
+    if (_min_log_level <= WebWireLogLevel_t::debug) {
+        emit(evt_handler_log << stderr << "DBG" << msg);
+    }
+}
+
+void WebWireHandler::debugDetail(const std::string &msg)
+{
+    if (_min_log_level <= WebWireLogLevel_t::debug_detail) {
+        emit(evt_handler_log << stderr << "DBG" << msg);
+    }
 }
 
 void WebWireHandler::closeListener()
@@ -1173,9 +1231,10 @@ void WebWireHandler::doQuit()
     wwlist<int> wins = _windows.keys();
     wwlist<int>::iterator it;
     for(it = wins.begin(); it != wins.end(); it++) {
-        windowCloses(*it, true);
-        //closeWindow(*it);
+        //windowCloses(*it, true);
+        closeWindow(*it);
     }
+    //webui_wait();   // After closing al windows, we wait untill it's done
     _app->quit();
 }
 
@@ -1220,6 +1279,7 @@ WebWireHandler::WebWireHandler(Application_t *app, int argc, char *argv[],
 
     _window_nr = 0;
     _code_handle = 0;
+    _min_log_level = WebWireLogLevel_t::debug;
 
     std::error_code ec;
     std::filesystem::path tmp_dir = std::filesystem::temp_directory_path(ec);
@@ -1239,17 +1299,18 @@ WebWireHandler::WebWireHandler(Application_t *app, int argc, char *argv[],
 #endif
 
     //_server = nullptr;
-    _server = new HttpServer_t(this, this);
-    connect(_server, id_httpserver_log, this);
-    _server->start();
-    bool listens = _server->listens();
-    if (!listens) {
-        _port = -1;
-        _webui_port = -1;
-    } else {
-        _port = _server->port(); //tcp_server->serverPort();
-        _webui_port = _server->webuiPort();
-    }
+    //_server = new HttpServer_t(this, this);
+    //connect(_server, id_httpserver_log, this);
+    //_server->start();
+    //bool listens = _server->listens();
+    //if (!listens) {
+    //    _port = -1;
+    //    _webui_port = -1;
+    //} else {
+    //    _port = _server->port(); //tcp_server->serverPort();
+    //    _webui_port = _server->webuiPort();
+    //}
+    bool listens = true;
 
     msg(std::string("Web UI Wire - v") + WEB_WIRE_VERSION + " - " + WEB_WIRE_COPYRIGHT + " - " + WEB_WIRE_LICENSE);
     msg("Web Wire file store: " + std::filesystem::absolute(_my_dir).string());
@@ -1267,6 +1328,11 @@ WebWireHandler::WebWireHandler(Application_t *app, int argc, char *argv[],
 
 WebWireHandler::~WebWireHandler()
 {
+    std::list<AtDelete_t *>::const_iterator it;
+    for(it = _to_inform_at_delete.begin(); it != _to_inform_at_delete.end(); it++) {
+        (*it)->deleteInProgress("WebWireHandler");
+    }
+
     std::error_code ec;
     std::filesystem::path tmp_dir = std::filesystem::temp_directory_path(ec);
     std::filesystem::path wr_dir = tmp_dir.append("web-ui-wire");
@@ -1288,6 +1354,17 @@ WebWireHandler::~WebWireHandler()
     fclose(_log_fh);
 
     std::filesystem::rename(from_dir, to_dir, ec);
+}
+
+
+void WebWireHandler::removeAtDelete(AtDelete_t *obj)
+{
+    _to_inform_at_delete.remove(obj);
+}
+
+void WebWireHandler::addAtDelete(AtDelete_t *obj)
+{
+    _to_inform_at_delete.push_back(obj);
 }
 
 void WebWireHandler::windowCloses(int win, bool do_close)
@@ -1323,7 +1400,7 @@ void WebWireHandler::windowCloses(int win, bool do_close)
 
         // If no windows left, call webui_clean.
         if (_windows.empty()) {
-            webui_clean();
+           // webui_clean();
         }
     }
 
@@ -1341,14 +1418,20 @@ void WebWireHandler::windowResized(int win, int w, int h)
     // "cleaned", i.e. will trigger not often
     WinInfo_t *i = _infos[win];
     i->size = Size_t(w,h);
-    evt(asprintf("resized:%d:%d %d", win, i->size.width(), i->size.height()));
+    json j;
+    j["width"] = i->size.width();
+    j["height"] = i->size.height();
+    evt(asprintf("resized:%d:%s", win, j.dump().c_str()));
 }
 
 void WebWireHandler::windowMoved(int win, int x, int y)
 {
     WinInfo_t *i = _infos[win];
     i->pos = Point_t(x, y);
-    evt(asprintf("moved:%d:%d %d", win, i->pos.x(), i->pos.y()));
+    json j;
+    j["x"] = i->pos.x();
+    j["y"] = i->pos.y();
+    evt(asprintf("moved:%d:%s", win, j.dump().c_str()));
 }
 
 void WebWireHandler::handleTimer(Event_t e)
@@ -1375,7 +1458,7 @@ void WebWireHandler::handleTimer(Event_t e)
 
 }
 
-int WebWireHandler::newWindow(const std::string &profile, int parent_win_id)
+int WebWireHandler::newWindow(const std::string &profile, bool in_browser, int parent_win_id)
 {
     ++_window_nr;
 
@@ -1409,7 +1492,7 @@ int WebWireHandler::newWindow(const std::string &profile, int parent_win_id)
         parent_win = getWindow(parent_win_id);
     }
 
-    WebUIWindow *w = new WebUIWindow(this, _window_nr, profile, parent_win, this);
+    WebUIWindow *w = new WebUIWindow(this, _window_nr, profile, in_browser, parent_win, this);
     _windows[_window_nr] = w;
 
     return _window_nr;
@@ -1507,7 +1590,7 @@ bool WebWireHandler::setWindowTitle(int win, const std::string &title)
     return w != nullptr;
 }
 
-bool WebWireHandler::setWindowIcon(int win, const FileInfo_t &icn_file)
+bool WebWireHandler::setWindowIcon(int win, const std::string &icn_file)
 {
     WebUIWindow *w = getWindow(win);
     if (w != nullptr) w->setWindowIcon(icn_file);
@@ -1582,36 +1665,42 @@ bool WebWireHandler::makeMenuBar(int win, QMenuBar *b, QJsonArray &a)
 
 bool WebWireHandler::setMenu(int win, const std::string &menu)
 {
-    /*TODO:
-    QJsonDocument doc = QJsonDocument::fromJson(menu.toUtf8());
-    WebUIWindow *w = getWindow(win);
-    if (w == nullptr) {
-        return false;
-    } else {
-        QMenuBar *bar = new QMenuBar(w);
-        QJsonArray a = doc.array();
-        if (makeMenuBar(win, bar, a)) {
-            w->setMenuBar(bar);
-            return true;
-        } else {
-            bar->deleteLater();
-            return false;
-        }
-    }
-*/
-    return false;
+    ExecJs js(this, win, "set-menu", true);
+    js.run("window._web_wire_menu(JSON.parse('" + ExecJs::esc_quote(menu) + "'));");
+    return true;
 }
 
 void WebWireHandler::setShowState(int win, const std::string &state)
 {
     WebUIWindow *w = getWindow(win);
-    //TODO:w->setShowState(state);
+
+    WebUiWindow_ShowState st;
+
+    if (state == "minimized") { st = minimized; }
+    else if (state == "maximized") { st = maximized; }
+    else if (state == "normal") { st = normal; }
+    else if (state == "shown") { st = shown; }
+    else if (state == "hidden") { st = hidden; }
+
+    w->setShowState(st);
 }
 
 std::string WebWireHandler::showState(int win)
 {
     WebUIWindow *w = getWindow(win);
-    return "shown"; //TODO:w->showState();
+    int v = w->showState();
+    if (v & WebUiWindow_ShowState::shown) {
+        v -= WebUiWindow_ShowState::shown;
+        if (v == WebUiWindow_ShowState::minimized) {
+            return "minimized";
+        } else if (v == WebUiWindow_ShowState::maximized) {
+            return "maximized";
+        } else {
+            return "normal";
+        }
+    } else {
+        return "hidden";
+    }
 }
 
 
@@ -1696,7 +1785,7 @@ void WebWireHandler::execJs(int win, const std::string &code, std::string tag)
 
 void WebWireHandler::start()
 {
-    msg("protocol-version: " WEB_WIRE_PROTOCOL_VERSION);
+    msg(asprintf("protocol-version: %d", WEB_WIRE_PROTOCOL_VERSION));
 }
 
 WinInfo_t::WinInfo_t() {

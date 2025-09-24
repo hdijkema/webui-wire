@@ -1,6 +1,11 @@
 #include "i_webui_wire.h"
 #include "webwirehandler.h"
 #include "application_t.h"
+#include "misc.h"
+#include "is_utf8.h"
+
+#include <chrono>
+#include <thread>
 
 extern "C" {
 #include <webui.h>
@@ -8,9 +13,13 @@ extern "C" {
 
 #define VALID_HANDLE 0x3823743293821426LL
 
-typedef struct
+static int next_handle_id = 0;
+
+class _webwire_handle : public AtDelete_t
 {
+public:
     long long       valid_handle;
+    int             handle_id;
     int             size_kind;
     char           *log_kind;
     int             size_msg;
@@ -24,7 +33,17 @@ typedef struct
     WebWireHandler *handler;
     Application_t  *app;
     bool            quit_by_exit_command;
-}  _webwire_handle;
+    void           (*signal_item)(int queue_count);
+    void           (*evt_handler)(const char *evt);
+    void           (*log_handler)(const char *kind, const char *msg);
+public:
+    void deleteInProgress(std::string from) {
+        if (from == "WebWireHandler") {
+            valid_handle = -1;
+            handler = nullptr;
+        }
+    }
+};
 
 #define id_ww_log   "i-webwire-log"
 #define id_ww_event "i-webwire-evt"
@@ -74,10 +93,25 @@ static void webui_wire_logger(webui_log_level_t level, const char *m, void *user
     if (_webwire_valid_handle(h, __FUNCTION__, __LINE__, true) == webwire_valid) {
         WebWireHandler *handler = h->handler;
 
-        std::string msg = m;
+        std::string msg;
+        if (!is_utf8(m, strlen(m))) {
+            int l = strlen(m);
+            char *buf = strdup(m);
+            while(l > 0 && !is_utf8(buf, l)) {
+                l -= 1;
+                buf[l] = '\0';
+            }
+            msg = buf;
+            msg += " (from invalid UTF-8)";
+            free(buf);
+        } else {
+            msg = m;
+        }
         trim(msg);
 
         switch(level) {
+        case log_debug_detail: handler->debugDetail("webui-detail:" + msg);
+            break;
         case log_debug:   handler->debug("webui-debug:" + msg);
             break;
         case log_info:    handler->message("webui-info:" + msg);
@@ -97,7 +131,26 @@ static void _log_handler(const char *kind, const char *msg, void *user_data)
     _webwire_handle *h = static_cast<_webwire_handle *>(user_data);
 
     if (_webwire_valid_handle(h, __FUNCTION__, __LINE__, true) == webwire_valid) {
-        h->queue->enqueue(Event_t(id_ww_log, nullptr) << std::string(kind) << std::string(msg));
+        if (h->log_handler != nullptr) {
+            int sk = strlen(kind) + 1;
+            if (h->size_kind < sk) {
+                h->size_kind = sk + 256;
+                h->log_kind = static_cast<char *>(realloc(h->log_kind, h->size_kind));
+            }
+            memcpy(h->log_kind, kind, sk);
+            int sm = strlen(msg) + 1;
+            if (h->size_msg < sm) {
+                h->size_msg = sm + 256;
+                h->log_msg = static_cast<char *>(realloc(h->log_msg, h->size_msg));
+            }
+            memcpy(h->log_msg, msg , sm);
+            h->log_handler(h->log_kind, h->log_msg);
+        } else {
+            h->queue->enqueue(Event_t(id_ww_log, nullptr) << std::string(kind) << std::string(msg));
+            if (h->signal_item != nullptr) {
+                h->signal_item(h->queue->count());
+            }
+        }
     }
 }
 
@@ -106,7 +159,20 @@ static void _event_handler(const char *evt, void *user_data)
     _webwire_handle *h = static_cast<_webwire_handle *>(user_data);
 
     if (_webwire_valid_handle(h, __FUNCTION__, __LINE__, true) == webwire_valid) {
-        h->queue->enqueue(Event_t(id_ww_event, nullptr) << std::string(evt));
+        if (h->evt_handler != nullptr) {
+            int sz = strlen(evt) + 1;
+            if (h->size_event < sz) {
+                h->size_event = sz + 256;
+                h->event = static_cast<char *>(realloc(h->event, h->size_event));
+            }
+            memcpy(h->event, evt, sz);
+            h->evt_handler(h->event);
+        } else {
+            h->queue->enqueue(Event_t(id_ww_event, nullptr) << std::string(evt));
+            if (h->signal_item != nullptr) {
+                h->signal_item(h->queue->count());
+            }
+        }
     }
 }
 
@@ -115,6 +181,7 @@ webwire_handle webwire_new()
     _webwire_handle *h = static_cast<_webwire_handle *>(malloc(sizeof(_webwire_handle)));
 
     h->valid_handle = VALID_HANDLE;
+    h->handle_id = ++next_handle_id;
     h->size_kind = 50;
     h->log_kind = static_cast<char *>(malloc(h->size_kind));
     h->size_msg = 256;
@@ -123,6 +190,9 @@ webwire_handle webwire_new()
     h->event = static_cast<char *>(malloc(h->size_event));
     h->size_command_result = 10240;
     h->command_result = static_cast<char *>(malloc(h->size_command_result));
+    h->signal_item = nullptr;
+    h->evt_handler = nullptr;
+    h->log_handler = nullptr;
 
     h->quit_by_exit_command = false;
 
@@ -146,10 +216,12 @@ webwire_handle webwire_new()
         webui_set_config(webui_config::use_cookies, true);
 
         h->exec_thread = new std::thread([h]() {
-            h->app->exec();
-            h->quit_by_exit_command = true;
+            h->app->exec(&(h->quit_by_exit_command));
         });
         setThreadName(h->exec_thread, "i-webui-wire-thread");
+#ifdef _WINDOWS
+        h->exec_thread->detach();
+#endif
 
         _log_handler("LOG", "WebWire Handler Started", h);
     }
@@ -167,11 +239,28 @@ void webwire_destroy(webwire_handle handle)
     if (s == webwire_valid || s == webwire_invalid_needs_destroying || s == webwire_invalid_existing_handle_destroy_this_one) {
         _webwire_handle *h = static_cast<_webwire_handle *>(handle);
 
+        // First make sure we don't do any call back anymore.
+        h->evt_handler = nullptr;
+        h->log_handler = nullptr;
+        h->signal_item =nullptr;
+
         if (s != webwire_invalid_existing_handle_destroy_this_one) {
             if (!h->quit_by_exit_command) {
                 h->handler->doQuit();   // Quitting handler
-                h->app->quit();         // Quitting app
-                h->exec_thread->join(); // Joining thread
+                //h->app->quit();         // Quitting app
+                while (!h->quit_by_exit_command) {
+                    h->app->quit();
+                    std::chrono::milliseconds ms(10);
+                    std::this_thread::sleep_for(ms);
+                }
+//#ifdef _WINDOWS
+//                terminateThread(h->exec_thread);
+//#else
+                if (h->exec_thread->joinable()) {             // Does not seem to work.
+                    h->exec_thread->join(); // Joining thread
+                }
+//#endif
+
                 delete h->exec_thread;  // Deleting thread
             }
 
@@ -193,6 +282,9 @@ void webwire_destroy(webwire_handle handle)
         h->log_msg = nullptr;
         h->event = nullptr;
         h->command_result = nullptr;
+        h->signal_item = nullptr;
+        h->evt_handler = nullptr;
+        h->log_handler = nullptr;
         h->size_kind = 0;
         h->size_msg = 0;
         h->size_event = 0;
@@ -319,3 +411,62 @@ webwire_handle webwire_current()
 {
     return static_cast<webwire_handle>(_current);
 }
+
+int webwire_handle_id(webwire_handle h)
+{
+    if (_webwire_valid_handle(h, __FUNCTION__, __LINE__, true) == webwire_valid) {
+        _webwire_handle *hh = static_cast<_webwire_handle *>(h);
+        return hh->handle_id;
+    }
+    return 0;
+}
+
+void webwire_set_signaller(webwire_handle h, void (*signal_item)(int))
+{
+    if (_webwire_valid_handle(h, __FUNCTION__, __LINE__, true) == webwire_valid) {
+        _webwire_handle *hh = static_cast<_webwire_handle *>(h);
+        hh->evt_handler = nullptr;
+        hh->log_handler = nullptr;
+        hh->signal_item = signal_item;
+        int count = hh->queue->count();
+        int i;
+        for(i = 0; i < count; i++) {
+            hh->signal_item(count);
+        }
+    }
+}
+
+bool webwire_set_handlers(webwire_handle h, void (*evt_handler)(const char *evt),
+                                            void (*log_handler)(const char *kind, const char *msg))
+{
+    if (_webwire_valid_handle(h, __FUNCTION__, __LINE__, true) == webwire_valid) {
+        _webwire_handle *hh = static_cast<_webwire_handle *>(h);
+        hh->signal_item = nullptr;
+        hh->evt_handler = evt_handler;
+        hh->log_handler = log_handler;
+        if (evt_handler == nullptr && log_handler == nullptr) {
+            return true;
+        } else if (evt_handler == nullptr || log_handler == nullptr) {
+            hh->evt_handler = nullptr;
+            hh->log_handler = nullptr;
+            return false;
+        }
+
+        char *evt, *kind, *msg;
+        enum_get_result r = webwire_get(h, &evt, &kind, &msg);
+        while(r != enum_get_result::webwire_null && r != enum_get_result::webwire_invalid_handle) {
+            if (r == enum_get_result::webwire_event) {
+                evt_handler(evt);
+            } else {
+                log_handler(kind, msg);
+            }
+            r = webwire_get(h, &evt, &kind, &msg);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+

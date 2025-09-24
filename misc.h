@@ -213,8 +213,13 @@ inline double toDouble(const std::string &s, bool *ok = nullptr)
 std::string asprintf(const char *fmt_str, ...);
 
 WEBUI_WIRE_EXPORT void setThreadName(std::thread *thr, std::string name);
+WEBUI_WIRE_EXPORT void terminateThread(std::thread *thr);
 
-
+class AtDelete_t
+{
+public:
+    virtual void deleteInProgress(std::string from) = 0;
+};
 
 
 #endif // MISC_H

@@ -105,6 +105,8 @@ add_library(libwebui-wire SHARED
     mimetypes_t.h mimetypes_t.cpp
 
     ${webui-wire_SOURCE_DIR}/deps/upa/src/url.cpp
+    httpresponse_t.h httpresponse_t.cpp
+    is_utf8.cpp is_utf8.h
 )
 
 add_dependencies(libwebui-wire webui-2-static-${LIBKIND} nativefiledialog-1-${LIBKIND} upa_url-${LIBKIND})

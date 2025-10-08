@@ -43,3 +43,4 @@
 # webui-wire directories
 build
 deps
+/CMakeLists.txt.user

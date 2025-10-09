@@ -198,7 +198,6 @@ void Application_t::exec(bool *exit_flag = nullptr)
                 std::cerr << "ERR:Unexpected! no route found for key " << key << "\n";
             }
         }
-
         msg = _evt_queue.dequeue();
     }
 

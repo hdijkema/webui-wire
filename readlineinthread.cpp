@@ -45,6 +45,10 @@ void ReadLineInThread::haveEof()
     emit(evt_readline_eof);
 }
 
+#ifdef __linux
+#define strerror_s(buf, size, nr) strerror_r(nr, buf, size)
+#endif
+
 void ReadLineInThread::haveError(int error_number)
 {
     char buf[10240];

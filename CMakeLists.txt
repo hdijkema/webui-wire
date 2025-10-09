@@ -2,14 +2,38 @@ cmake_minimum_required(VERSION 3.16)
 
 project(webui-wire LANGUAGES CXX)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 if(${CMAKE_BUILD_TYPE} STREQUAL Debug)
     set(LIBKIND "d")
 else()
     set(LIBKIND "r")
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(LIBEXT lib)
+    set(LIBPRE )
+else()
+    set(LIBEXT a)
+    set(LIBPRE lib)
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # using Clang
+  add_compile_options(-fPIC)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  # using GCC
+  add_compile_options(-fPIC)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+  # using Intel C++
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  # using Visual Studio C++
+endif()
+
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(GIT_EXECUTABLE git)
 
 if(NOT(EXISTS ./deps))
     file(MAKE_DIRECTORY ./deps)
@@ -23,6 +47,7 @@ function(git_dep dir dep)
             WORKING_DIRECTORY ${webui-wire_SOURCE_DIR}/deps/${dir}
         )
     else()
+        message("Executing git clone...")
         execute_process(
             COMMAND ${GIT_EXECUTABLE} clone ${dep} ${webui-wire_SOURCE_DIR}/deps/${dir}
             COMMAND_ECHO STDOUT
@@ -32,19 +57,19 @@ endfunction()
 
 function(sub_target lib dir build_target build_type)
     add_custom_target(${lib}
-        ALL ${CMAKE_COMMAND} -S . -B ./build
-        COMMAND ${CMAKE_COMMAND} --build ./build --target ${build_target} --config ${build_type}
+        ALL ${CMAKE_COMMAND} -E env "CFLAGS=-fPIC" ${CMAKE_COMMAND} -S . -B ./build/${build_type}
+        COMMAND ${CMAKE_COMMAND} -E env "CFLAGS=-fPIC" ${CMAKE_COMMAND} --build ./build/${build_type} --target ${build_target} --config ${build_type}
         WORKING_DIRECTORY ${webui-wire_SOURCE_DIR}/deps/${dir}
     )
     add_custom_target(${lib}-${LIBKIND}
-        ALL ${CMAKE_COMMAND} -E copy ${webui-wire_SOURCE_DIR}/deps/${dir}/build/${build_type}/${lib}.lib ${webui-wire_SOURCE_DIR}/deps
-        COMMAND ${CMAKE_COMMAND} -E rename ${webui-wire_SOURCE_DIR}/deps/${lib}.lib ${webui-wire_SOURCE_DIR}/deps/${lib}-${LIBKIND}.lib
+        ALL ${CMAKE_COMMAND} -E copy ${webui-wire_SOURCE_DIR}/deps/${dir}/build/${build_type}/${lib}.${LIBEXT} ${webui-wire_SOURCE_DIR}/deps
+        COMMAND ${CMAKE_COMMAND} -E rename ${webui-wire_SOURCE_DIR}/deps/${lib}.${LIBEXT} ${webui-wire_SOURCE_DIR}/deps/${lib}-${LIBKIND}.${LIBEXT}
     )
     add_dependencies(${lib}-${LIBKIND} ${lib})
 endfunction()
 
 function(link_target target lib)
-    target_link_libraries(${target} ${webui-wire_SOURCE_DIR}/deps/${lib}-${LIBKIND}.lib)
+    target_link_libraries(${target} ${webui-wire_SOURCE_DIR}/deps/${lib}-${LIBKIND}.${LIBEXT})
 endfunction()
 
 git_dep(webui https://github.com/hdijkema/webui.git)
@@ -67,12 +92,18 @@ if(TARGET clean)
     set(other_target clean)
 else()
     set(upa_target upa_url)
-    set(other_target ALL_BUILD)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        set(other_target ALL_BUILD)
+    else()
+        set(other_target all)
+    endif()
 endif()
 
-sub_target(nativefiledialog-1 nativefiledialog ${other_target} ${CMAKE_BUILD_TYPE})
-sub_target(webui-2-static webui ${other_target} Release) #Debug)
-sub_target(upa_url upa ${upa_target} ${CMAKE_BUILD_TYPE})
+
+sub_target(${LIBPRE}nativefiledialog-1 nativefiledialog ${other_target} ${CMAKE_BUILD_TYPE})
+sub_target(${LIBPRE}webui-2-static webui ${other_target} Debug) #Release) #Debug)
+sub_target(${LIBPRE}upa_url upa ${upa_target} ${CMAKE_BUILD_TYPE})
+add_subdirectory(deps/upa)
 
 add_library(libwebui-wire SHARED
     webui_wire.h
@@ -109,16 +140,30 @@ add_library(libwebui-wire SHARED
     is_utf8.cpp is_utf8.h
 )
 
-add_dependencies(libwebui-wire webui-2-static-${LIBKIND} nativefiledialog-1-${LIBKIND} upa_url-${LIBKIND})
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GTK REQUIRED gtk+-3.0)
+
+    include_directories(${GTK_INCLUDE_DIRS})
+    message("${GTK_INCLUDE_DIRS}")
+    link_directories(${GTK_LIBRARY_DIRS})
+    target_link_libraries(libwebui-wire ${GTK_LIBRARIES})
+endif()
+
+
+add_dependencies(libwebui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefiledialog-1-${LIBKIND} ${LIBPRE}upa_url-${LIBKIND})
 
 target_compile_definitions(libwebui-wire PRIVATE LIBWEBUI_WIRE_BUILDING)
 
-link_target(libwebui-wire webui-2-static)
-link_target(libwebui-wire nativefiledialog-1)
-link_target(libwebui-wire upa_url)
+link_target(libwebui-wire ${LIBPRE}webui-2-static)
+link_target(libwebui-wire ${LIBPRE}nativefiledialog-1)
+#link_target(libwebui-wire ${LIBPRE}upa_url)
+#link_target(libwebui-wire deps/upa::url)
+target_link_libraries(libwebui-wire upa::url)
 
 add_executable(webui-wire main.cpp)
-target_link_libraries(webui-wire libwebui-wire.lib)
+target_link_libraries(webui-wire libwebui-wire) #${webui-wire_SOURCE_DIR}/build/${CMAKE_BUILD_TYPE}/${LIBPRE}libwebui-wire)
+
 
 add_dependencies(webui-wire libwebui-wire)
 
@@ -127,3 +172,4 @@ install(TARGETS libwebui-wire
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+

@@ -10,7 +10,7 @@
 #endif
 #endif
 
-#ifdef _LINUX
+#ifdef __linux
 #ifdef LIBWEBUI_WIRE_BUILDING
 #define WEBUI_WIRE_EXPORT __attribute__((visibility("default")))
 #else

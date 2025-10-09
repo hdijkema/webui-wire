@@ -1295,7 +1295,7 @@ WebWireHandler::WebWireHandler(Application_t *app, int argc, char *argv[],
 #ifdef _WINDOWS
     _log_fh = _fsopen(log_file.c_str(), "wt", _SH_DENYNO);
 #else
-    _log_fh = fopen(log_file.c_str().data(), "wt");
+    _log_fh = fopen(log_file.c_str(), "wt");
 #endif
 
     //_server = nullptr;

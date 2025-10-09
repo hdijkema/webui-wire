@@ -45,6 +45,10 @@ public:
 
 #ifdef _WINDOWS
 #define strnicmp _strnicmp
+#else
+#ifdef __linux
+#define strnicmp strncasecmp
+#endif
 #endif
 
 static bool isHTML(const char *_buf, int max_search)
@@ -86,11 +90,11 @@ void HttpServer_t::run_http_server()
         this->serverLog("Serving: " + r.url);
         //this->isValidEndpoint(reinterpret_cast<void *>(const_cast<crow::request *>(&r)));
 
-        auto a = r.socket_adaptor;
-        int port = a->port();
-        int pp = a->remote_endpoint().port();
+        //auto a = r.socket_adaptor;
+        //int port = a->port();
+        //int pp = a->remote_endpoint().port();
 
-        this->serverLog("remote address:" + r.remote_ip_address + " - " + asprintf("%d", port));
+        //this->serverLog("remote address:" + r.remote_ip_address + " - " + asprintf("%d", port));
 
         //tcp::socket s(*r.io_context);
 

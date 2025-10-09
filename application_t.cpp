@@ -6,6 +6,10 @@
 
 Application_t *Application_t::_current_app = nullptr;
 
+#ifdef __linux
+#define sprintf_s snprintf
+#endif
+
 std::string Application_t::sourceKey(Object_t *source, std::string event)
 {
     char buffer[1024];

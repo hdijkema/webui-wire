@@ -1,7 +1,7 @@
 #ifndef HTTPRESPONSE_T_H
 #define HTTPRESPONSE_T_H
 
-#include <String>
+#include <string>
 #include "misc.h"
 
 class WebWireHandler;

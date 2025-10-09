@@ -8,6 +8,8 @@
 #include "httpresponse_t.h"
 #include "mimetypes_t.h"
 #include <regex>
+#include <string.h>
+
 
 #define WEBWIREHANDLER ((Application_t::current() == nullptr) ? nullptr : (Application_t::current()->handler()))
 
@@ -86,6 +88,10 @@ static void webui_event_handler(webui_event_t *e)
 
 #ifdef _WINDOWS
 #define strnicmp _strnicmp
+#endif
+
+#ifdef __linux
+#define strnicmp strncasecmp
 #endif
 
 static bool isHTML(const char *_buf, int max_search)
@@ -287,9 +293,25 @@ const void *WebUIWindow::filesHandler(const char *url_path, int *length)
     std::string webui_js = "/webui.js";
     std::string window = asprintf("%d", _win);
 
-    std::string file = (m.empty()) ? "" : trim_copy(m[1].str());
+    bool root_url = false;
+    bool empty_url = false;
+    std::string file;
+    if (m.empty()) {
+        empty_url = true;
+    } else {
+        std::string part = trim_copy(m[1].str());
+        if (part == "") {
+            root_url =true;
+        } else {
+#ifdef _WINDOWS
+            file = part;        // To prevent /C:/<path>
+#else
+            file = file_path;
+#endif
+        }
+    }
 
-    if (file == "") {
+    if (root_url || empty_url) {
         std::string standard_msg = standardMessage();
         HttpResponse_t resp(_handler, 200);
         resp.setContentType("text/html");
@@ -308,6 +330,7 @@ const void *WebUIWindow::filesHandler(const char *url_path, int *length)
             FILE *f = fopen(file.c_str(), "rb");
 #endif
             char *buffer = static_cast<char *>(malloc(max_search + 1));
+            memset(buffer, 0, max_search + 1);
             fread(buffer, max_search, 1, f);
             buffer[max_search] = '\0';
             std::string content_type;
@@ -563,7 +586,15 @@ bool WebUIWindow::disconnected()
     return _disconnected;
 }
 
-HWND WebUIWindow::nativeHandle()
+#ifdef __linux
+GtkWindow *WebUIWindow::nativeHandle()
+#else
+#ifdef _WINDOWS
+    HWND WebUIWindow::nativeHandle()
+#else
+#error "Not implemented"
+#endif
+#endif
 {
     return _win_handle;
 }

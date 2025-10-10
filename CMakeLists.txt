@@ -73,8 +73,6 @@ function(link_target target lib)
 endfunction()
 
 git_dep(webui https://github.com/hdijkema/webui.git)
-git_dep(asio https://github.com/chriskohlhoff/asio.git)
-git_dep(Crow https://github.com/CrowCpp/Crow.git)
 git_dep(upa https://github.com/upa-url/upa.git)
 git_dep(json https://github.com/nlohmann/json.git)
 git_dep(nativefiledialog https://github.com/hdijkema/nativefiledialog.git)
@@ -83,8 +81,6 @@ include_directories(.)
 include_directories(deps/webui/include)
 include_directories(deps/nativefiledialog/src/include)
 include_directories(deps/json/include deps/json/include/nlohmann)
-include_directories(deps/Crow/include)
-include_directories(deps/asio/asio/include)
 include_directories(deps/upa/include/ deps/upa/include/upa)
 
 if(TARGET clean)
@@ -101,8 +97,7 @@ endif()
 
 
 sub_target(${LIBPRE}nativefiledialog-1 nativefiledialog ${other_target} ${CMAKE_BUILD_TYPE})
-sub_target(${LIBPRE}webui-2-static webui ${other_target} Debug) #Release) #Debug)
-sub_target(${LIBPRE}upa_url upa ${upa_target} ${CMAKE_BUILD_TYPE})
+sub_target(${LIBPRE}webui-2-static webui ${other_target} Release) #Debug)
 add_subdirectory(deps/upa)
 
 add_library(libwebui-wire SHARED
@@ -132,7 +127,6 @@ add_library(libwebui-wire SHARED
     execjs.h execjs.cpp
     webwirestandarddialogs.h webwirestandarddialogs.cpp
 
-    httpserver_t.h httpserver_t.cpp
     mimetypes_t.h mimetypes_t.cpp
 
     ${webui-wire_SOURCE_DIR}/deps/upa/src/url.cpp
@@ -151,18 +145,16 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 
-add_dependencies(libwebui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefiledialog-1-${LIBKIND} ${LIBPRE}upa_url-${LIBKIND})
+add_dependencies(libwebui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefiledialog-1-${LIBKIND})
 
 target_compile_definitions(libwebui-wire PRIVATE LIBWEBUI_WIRE_BUILDING)
 
 link_target(libwebui-wire ${LIBPRE}webui-2-static)
 link_target(libwebui-wire ${LIBPRE}nativefiledialog-1)
-#link_target(libwebui-wire ${LIBPRE}upa_url)
-#link_target(libwebui-wire deps/upa::url)
 target_link_libraries(libwebui-wire upa::url)
 
 add_executable(webui-wire main.cpp)
-target_link_libraries(webui-wire libwebui-wire) #${webui-wire_SOURCE_DIR}/build/${CMAKE_BUILD_TYPE}/${LIBPRE}libwebui-wire)
+target_link_libraries(webui-wire libwebui-wire)
 
 
 add_dependencies(webui-wire libwebui-wire)

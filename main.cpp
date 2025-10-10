@@ -4,6 +4,10 @@
 #include "misc.h"
 #include "event_t.h"
 
+#ifdef __linux
+#include <gtk/gtk.h>
+#endif
+
 #define id_log  "log-message"
 #define evt_log Event_t(id_log, nullptr)
 
@@ -46,7 +50,11 @@ int main(int argc, char *argv[])
 {
     // create an event queue and wait for lines
 
+#ifdef __linux
+    _queue.setWait(2);
+#else
     _queue.setWait(500);
+#endif
 
     webwire_handle handle = webwire_new();
     enum_handle_status s = webwire_status(handle);
@@ -122,6 +130,18 @@ int main(int argc, char *argv[])
                 go_on = false;
             }
         }
+#ifdef __linux
+        else {  // Idle processing, process Gtk events.
+            static bool initialized = false;
+            if (!initialized) {
+                gtk_init(&argc, &argv);
+                initialized = true;
+            }
+            while (gtk_events_pending()) {
+                gtk_main_iteration_do(0);
+            }
+        }
+#endif
     }
 
     fprintf(stderr, "here1\n");

@@ -4,6 +4,11 @@
 #include <cassert>
 #include <string>
 
+#ifdef __linux
+#include <string.h>
+#include <malloc.h>
+#endif
+
 typedef enum {
     t_unknown = 0,
     t_string,

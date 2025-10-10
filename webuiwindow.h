@@ -11,6 +11,10 @@ extern "C" {
 #include <webui.h>
 }
 
+#ifdef __linux
+#include <gtk/gtk.h>
+#endif
+
 class WebWireHandler;
 class WebWireProfile;
 
@@ -44,7 +48,11 @@ private:
 #ifdef _WINDOWS
     HWND            _win_handle;
 #else
-    error Not implemented yet
+    #ifdef __linux
+        GtkWindow   *_win_handle;
+    #else
+        error Not implemented yet
+    #endif
 #endif
 
 private:
@@ -79,6 +87,12 @@ public:
 public:
 #ifdef _WINDOWS
     HWND nativeHandle();
+#else
+#ifdef __linux
+    GtkWindow *nativeHandle();
+#else
+#error "Not implemented"
+#endif
 #endif
 
 public:

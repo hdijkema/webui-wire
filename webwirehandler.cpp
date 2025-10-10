@@ -11,7 +11,6 @@
 #include "webuiwindow.h"
 #include "webwirestandarddialogs.h"
 #include "execjs.h"
-#include "httpserver_t.h"
 
 namespace fs = std::filesystem;
 
@@ -900,10 +899,6 @@ void WebWireHandler::event(Event_t msg)
         processInput(line);
     } else if (msg.is_a(id_readline_eof) || msg.is_a(id_readline_error)) {
         this->inputStopped(msg);
-    } else if (msg.is_a(id_httpserver_log)) {
-        std::string m;
-        msg >> m;
-        this->message(m);
     } else if (msg.is_a(id_handler_log)) {
         FILE *std_f;
         const char *kind;
@@ -1295,7 +1290,7 @@ WebWireHandler::WebWireHandler(Application_t *app, int argc, char *argv[],
 #ifdef _WINDOWS
     _log_fh = _fsopen(log_file.c_str(), "wt", _SH_DENYNO);
 #else
-    _log_fh = fopen(log_file.c_str().data(), "wt");
+    _log_fh = fopen(log_file.c_str(), "wt");
 #endif
 
     //_server = nullptr;

@@ -7,6 +7,10 @@
 #include <chrono>
 #include <thread>
 
+#ifdef __linux
+#include <gtk/gtk.h>
+#endif
+
 extern "C" {
 #include <webui.h>
 }
@@ -470,3 +474,20 @@ bool webwire_set_handlers(webwire_handle h, void (*evt_handler)(const char *evt)
 }
 
 
+
+void webwire_process_gui(webwire_handle h)
+{
+#ifdef __linux
+    static bool initialized = false;
+    static int argc = 0;
+    static const char *argv[] = { NULL };
+    if (!initialized) {
+        char **av = (char **) argv;
+        gtk_init(&argc, &av);
+        initialized = true;
+    }
+    while (gtk_events_pending()) {
+        gtk_main_iteration_do(0);
+    }
+#endif
+}

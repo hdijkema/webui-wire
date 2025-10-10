@@ -1,5 +1,10 @@
 #include "misc.h"
 #include <stdarg.h>
+#include <stdio.h>
+
+#ifdef __linux
+#define vsprintf_s vsnprintf
+#endif
 
 std::string asprintf(const char *fmt_str, ...)
 {
@@ -60,9 +65,10 @@ void SetThreadName( std::thread* thread, const char* threadName)
 
 #elif defined(__linux__)
 #include <sys/prctl.h>
-void SetThreadName( const char* threadName)
+void SetThreadName(std::thread *thread, const char* threadName)
 {
-    prctl(PR_SET_NAME,threadName,0,0,0);
+    pthread_setname_np(thread->native_handle(), threadName);
+    //prctl(PR_SET_NAME,threadName,0,0,0);
 }
 
 #else

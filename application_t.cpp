@@ -6,6 +6,10 @@
 
 Application_t *Application_t::_current_app = nullptr;
 
+#ifdef __linux
+#define sprintf_s snprintf
+#endif
+
 std::string Application_t::sourceKey(Object_t *source, std::string event)
 {
     char buffer[1024];
@@ -194,7 +198,6 @@ void Application_t::exec(bool *exit_flag = nullptr)
                 std::cerr << "ERR:Unexpected! no route found for key " << key << "\n";
             }
         }
-
         msg = _evt_queue.dequeue();
     }
 

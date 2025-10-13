@@ -49,7 +49,7 @@ void Timer_t::start()
 
         }
 
-        fprintf(stderr, "Ending thread function\n");
+        //fprintf(stderr, "Ending thread function\n");
         _stopped = false;
     });
     setThreadName(_timer_thread, "timer-thread-" + _name);

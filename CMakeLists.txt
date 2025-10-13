@@ -21,13 +21,17 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   # using Clang
   add_compile_options(-fPIC)
+  set(CFLAGS_ENV "CFLAGS=-fPIC")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # using GCC
   add_compile_options(-fPIC)
+  set(CFLAGS_ENV "CFLAGS=-fPIC")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
+  set(CFLAGS_ENV "")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # using Visual Studio C++
+  set(CFLAGS_ENV "")
 endif()
 
 
@@ -57,7 +61,7 @@ endfunction()
 
 function(sub_target lib dir build_target build_type)
     add_custom_target(${lib}
-        ALL ${CMAKE_COMMAND} -E env "CFLAGS=-fPIC" ${CMAKE_COMMAND} -S . -B ./build/${build_type}
+        ALL ${CMAKE_COMMAND} -E env ${CFLAGS_ENV} ${CMAKE_COMMAND} -S . -B ./build/${build_type}
         COMMAND ${CMAKE_COMMAND} -E env "CFLAGS=-fPIC" ${CMAKE_COMMAND} --build ./build/${build_type} --target ${build_target} --config ${build_type}
         WORKING_DIRECTORY ${webui-wire_SOURCE_DIR}/deps/${dir}
     )
@@ -100,7 +104,25 @@ sub_target(${LIBPRE}nativefiledialog-1 nativefiledialog ${other_target} ${CMAKE_
 sub_target(${LIBPRE}webui-2-static webui ${other_target} Release) #Debug)
 add_subdirectory(deps/upa)
 
-add_library(libwebui-wire STATIC #SHARED
+#add_library(libwebui-wire STATIC #SHARED
+#
+#)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GTK REQUIRED gtk+-3.0)
+
+    include_directories(${GTK_INCLUDE_DIRS})
+    message("${GTK_INCLUDE_DIRS}")
+    link_directories(${GTK_LIBRARY_DIRS})
+    target_link_libraries(webui-wire ${GTK_LIBRARIES})
+endif()
+
+
+
+#target_compile_definitions(libwebui-wire PRIVATE LIBWEBUI_WIRE_BUILDING)
+
+add_executable(webui-wire main.cpp
     webui_wire.h
     webui_wire_defs.h
     i_webui_wire.h
@@ -133,34 +155,18 @@ add_library(libwebui-wire STATIC #SHARED
     httpresponse_t.h httpresponse_t.cpp
     is_utf8.cpp is_utf8.h
 )
+#target_link_libraries(webui-wire libwebui-wire)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(GTK REQUIRED gtk+-3.0)
+add_dependencies(webui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefiledialog-1-${LIBKIND})
 
-    include_directories(${GTK_INCLUDE_DIRS})
-    message("${GTK_INCLUDE_DIRS}")
-    link_directories(${GTK_LIBRARY_DIRS})
-    target_link_libraries(libwebui-wire ${GTK_LIBRARIES})
-endif()
+link_target(webui-wire ${LIBPRE}webui-2-static)
+link_target(webui-wire ${LIBPRE}nativefiledialog-1)
+target_link_libraries(webui-wire upa::url)
 
-
-add_dependencies(libwebui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefiledialog-1-${LIBKIND})
-
-target_compile_definitions(libwebui-wire PRIVATE LIBWEBUI_WIRE_BUILDING)
-
-link_target(libwebui-wire ${LIBPRE}webui-2-static)
-link_target(libwebui-wire ${LIBPRE}nativefiledialog-1)
-target_link_libraries(libwebui-wire upa::url)
-
-add_executable(webui-wire main.cpp)
-target_link_libraries(webui-wire libwebui-wire)
-
-
-add_dependencies(webui-wire libwebui-wire)
+#add_dependencies(webui-wire libwebui-wire)
 
 include(GNUInstallDirs)
-install(TARGETS libwebui-wire
+install(TARGETS webui-wire
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )

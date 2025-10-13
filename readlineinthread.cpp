@@ -144,5 +144,5 @@ void ReadLineInThread::run()
         }
 #endif
     }
-    fprintf(stderr, "left readline thread\n");
+    //fprintf(stderr, "left readline thread\n");
 }

@@ -62,7 +62,7 @@ static bool web_ui_wire_on_close(size_t window)
 
 static const void *web_ui_wire_files_handler(size_t window, const char *filename, int* length)
 {
-    fprintf(stderr, "%s\n", filename);
+    //fprintf(stderr, "%s\n", filename);
     WebUIWindow *win = get_webui_window(window);
     if (win != nullptr) {
         return win->filesHandler(filename, length);

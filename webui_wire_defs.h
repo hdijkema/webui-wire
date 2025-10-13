@@ -1,6 +1,14 @@
 #ifndef WEBUI_WIRE_DEFS_H
 #define WEBUI_WIRE_DEFS_H
 
+#define WEBUI_WIRE_STATIC true
+
+#ifdef WEBUI_WIRE_STATIC
+#define WEBUI_WIRE_EXPORT
+#ifndef I_WEBUI_WIRE_EXPORT
+#define I_WEBUI_WIRE_EXPORT
+#endif
+#else
 
 #ifdef _WINDOWS
 #ifdef LIBWEBUI_WIRE_BUILDING
@@ -20,6 +28,7 @@
 
 #ifndef I_WEBUI_WIRE_EXPORT
 #define I_WEBUI_WIRE_EXPORT
+#endif
 #endif
 
 

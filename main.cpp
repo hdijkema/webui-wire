@@ -93,6 +93,21 @@ int main(int argc, char *argv[])
     });
     setThreadName(&msg_thread, "webui-wire-msg-thread");
 
+    int buf_size = 1024;
+    char *out_buf = static_cast<char *>(malloc(buf_size + 1));
+
+    auto check_buf_size = [&buf_size, &out_buf](int len) {
+        if (len > 0 && len > buf_size) {
+            buf_size = len * 2;
+            out_buf = static_cast<char *>(realloc(out_buf, buf_size + 1));
+            if (out_buf == nullptr) {
+                exit(2);
+            }
+            return true;
+        }
+        return false;
+    };
+
     while (go_on) {
         Event_t evt = _queue.dequeue();
         if (!evt.isNull()) {
@@ -102,31 +117,54 @@ int main(int argc, char *argv[])
                 evt >> kind;
                 evt >> msg;
                 trim(msg);
-                fprintf(stdout, "%s:%s\n", kind.c_str(), msg.c_str());
-                fflush(stdout);
+                int len = snprintf(out_buf, buf_size, "%s:%s", kind.c_str(), msg.c_str());
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "%s:%s", kind.c_str(), msg.c_str());
+                }
+                fprintf(stderr, "%08d:%s\n", len, out_buf);
+                fflush(stderr);
             } else if (evt.is_a(id_evt)) {
                 std::string event;
                 evt >> event;
                 trim(event);
-                fprintf(stdout, "%s:%s\n", "EVENT", event.c_str());
-                fflush(stdout);
+                int len = snprintf(out_buf, buf_size, "%s:%s", "EVENT", event.c_str());
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "%s:%s", "EVENT", event.c_str());
+                }
+                fprintf(stderr, "%08d:%s\n", len, out_buf);
+                fflush(stderr);
             } else if (evt.is_a(id_readline_have_line)) {
                 std::string line;
                 evt >> line;
                 const char *result = webwire_command(handle, line.c_str());
-                fprintf(stdout, "%s\n", result);
+                int len = snprintf(out_buf, buf_size, "%s", result);
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "%s", result);
+                }
+                fprintf(stdout, "%08d:%s\n", len, result);
+                fflush(stdout);
                 if (trim_copy(line) == "exit") {
                     go_on = false;
                 }
             } else if (evt.is_a(id_readline_eof)) {
-                fprintf(stdout, "readline: eof\n");
+                int len = snprintf(out_buf, buf_size, "EVENT:readline:EOF");
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "EVENT:readline:EOF");
+                }
+                fprintf(stderr, "%08d:%s\n", len, out_buf);
+                fflush(stderr);
                 go_on = false;
             } else if (evt.is_a(id_readline_error)) {
                 std::string errmsg;
                 int no;
                 evt >> no;
                 evt >> errmsg;
-                fprintf(stdout, "readline error: %d, %s", no, errmsg.c_str());
+                int len = snprintf(out_buf, buf_size, "EVENT:readline error:%d:%s", no, errmsg.c_str());
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "EVENT:readline error:%d:%s", no, errmsg.c_str());
+                }
+                fprintf(stderr, "%08d:%s\n", len, out_buf);
+                fflush(stderr);
                 go_on = false;
             }
         }
@@ -144,14 +182,16 @@ int main(int argc, char *argv[])
 #endif
     }
 
-    fprintf(stderr, "here1\n");
     msg_thread.join();
-    fprintf(stderr, "here2\n");
     webwire_destroy(handle);
-    fprintf(stderr, "here3\n");
     delete reader;
 
-    fprintf(stderr, "ok - klaar...>");
+    int len = snprintf(out_buf, buf_size, "EVENT:exiting");
+    if (check_buf_size(len)) {
+        snprintf(out_buf, buf_size, "EVENT:exiting");
+    }
+    fprintf(stderr, "%08d:%s\n", len, out_buf);
+    fflush(stderr);
 
     return 0;
 }

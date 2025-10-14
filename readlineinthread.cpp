@@ -72,18 +72,30 @@ void ReadLineInThread::run()
 //    int buf_idx = 0;
 //#endif
 
+    FILE *log_fh = fopen("/tmp/webui_wire_rl.log", "wt");
+
     _wait_ms = 1500;
     while(_go_on) {
         char *s = nullptr;
-        bool have_line = false;
-#ifdef _WINDOWS
+        //bool have_line = false;
+#ifdef __linux
         char buffer[10240];
         fgets(buffer, 10240, stdin);
-
-        std::string line = buffer;
-        trim(line);
-        if (line != "") {
-            haveALine(line);
+        fprintf(log_fh, "buffer:%s:end\n", buffer);
+        fflush(log_fh);
+        if (feof(stdin)) {
+            fprintf(log_fh, "feof(stdin)\n");
+            fflush(log_fh);
+            _go_on = false;
+        } else {
+            std::string line = buffer;
+            trim(line);
+            if (line != "") {
+                haveALine(line);
+                if (line == "exit") {
+                    _go_on = false;
+                }
+            }
         }
 
         /*
@@ -132,17 +144,26 @@ void ReadLineInThread::run()
         tv.tv_sec = 0;
         tv.tv_usec = _wait_ms * 1000;    // _wait_ms ms
         int retval = select(1, &read_set, NULL, NULL, &tv);
+        //fprintf(log_fh, "select retval:%d\n", retval);
         if (retval == -1) {
             perror("select()");
         } else if (retval) {
             s = fgets(_buffer, _buffer_len, stdin);
-            have_line = true;
+            if (s != nullptr) {
+                have_line = true;
+                fprintf(log_fh, "Buffer:%s:End\n", _buffer);
+                fflush(log_fh);
+            }
         }
-        if (have_line && s != nullptr) {
+        if (have_line) {
             std::string l(s);
+            fprintf(log_fh, "signalling...\n");
+            fflush(log_fh);
             haveALine(l);
         }
 #endif
     }
+
+    fclose(log_fh);
     //fprintf(stderr, "left readline thread\n");
 }

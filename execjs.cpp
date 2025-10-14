@@ -63,14 +63,29 @@ void ExecJs::run(const std::string &code)
 }
 
 #define MAX_JS_BUF (100 *1024)      // Max 100Kb Buffer
-#define MAX_EXEC_TIME 600           // 10 minutes maximum execution time
+#define MAX_EXEC_TIME 30 //600           // 10 minutes maximum execution time
 
 std::string ExecJs::call(const std::string &code, bool &ok)
 {
-    char *buf = static_cast<char *>(malloc(MAX_JS_BUF));
+    //char *buf = static_cast<char *>(malloc(MAX_JS_BUF));
 
     _handler->message("calling: " + code);
-    ok = webui_script(_webui_win, code.c_str(), MAX_EXEC_TIME, buf, MAX_JS_BUF);
+
+    // Due to gtk, we need to execute javascript asynchronous.
+
+    std::string script = "{ "
+                         "  let f = function(r, ok, m) { window._web_wire_put_evt({ evt: 'script-result', result: r, result_ok: ok, result_msg: m }); };\n"
+                         "  try {\n"
+                         "    let g = function() { " + code + "};\n"
+                         "    let r = g();\n"
+                         "    f(r + '', true, '');\n"
+                         "  } catch (e) {\n"
+                         "    f('', false, e.message);\n"
+                         "  }\n"
+                         "}";
+
+    //ok = webui_script(_webui_win, code.c_str(), MAX_EXEC_TIME, buf, MAX_JS_BUF);
+    webui_run(_webui_win, script.c_str());
 
     if (_is_void) {
         _handler->error("ExecJs:Calling code that has been declared void");
@@ -82,15 +97,50 @@ std::string ExecJs::call(const std::string &code, bool &ok)
         return s;
     }
 
-    if (ok) {
-        std::string s = buf;
-        free(buf);
-        return makeResult(_handler, s);
-    } else {
-        free(buf);
-        _handler->error("ExecJs: Error executing " + code);
-        return "";
+    _window->setExecJs(this);
+
+    _result_set = false;
+    int tick = 0;
+    int timeout_ticks = MAX_EXEC_TIME * 1000;
+    while(!_result_set && tick < timeout_ticks) {
+#ifdef __linux
+        while (gtk_events_pending()) {
+            gtk_main_iteration_do(0);
+        }
+#endif
+        std::chrono::milliseconds d = std::chrono::milliseconds(1);
+        std::this_thread::sleep_for(d);
+        tick += 1;
     }
+
+    if (tick >= timeout_ticks) {
+        _handler->error("ExecJs: Timeout for code " + code);
+        _window->setExecJs(nullptr);
+        std::string s = "";
+        return s;
+    }
+
+    if (_result_ok) {
+        ok = true;
+        return makeResult(_handler, _result);
+    } else {
+        ok = false;
+        _handler->error("ExecJs: Error executing " + code);
+        _handler->error("ExecJs: Error message: " + _result_msg);
+        std::string s = "";
+        return s;
+    }
+
+    std::string s = "";
+    return s;
+}
+
+void ExecJs::setResult(std::string result, bool ok, std::string msg)
+{
+    _result = result;
+    _result_ok = ok;
+    _result_msg = msg;
+    _result_set = true;
 }
 
 ExecJs::ExecJs(WebWireHandler *handler, int win, std::string name, bool is_void)
@@ -101,6 +151,7 @@ ExecJs::ExecJs(WebWireHandler *handler, int win, std::string name, bool is_void)
     _name = name;
 
     WebUIWindow *w = _handler->getWindow(_win);
+    _window = w;
     if (w == nullptr) {
         _webui_win = 0;
     } else {

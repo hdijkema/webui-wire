@@ -108,6 +108,13 @@ int main(int argc, char *argv[])
         return false;
     };
 
+    FILE *fh_log = fopen("/tmp/webui_wire.log", "wt");
+
+    auto do_log = [fh_log](const char *kind, int len, const char *msg) {
+        fprintf(fh_log, "%s-%08d:%s\n", kind, len, msg);
+        fflush(fh_log);
+    };
+
     while (go_on) {
         Event_t evt = _queue.dequeue();
         if (!evt.isNull()) {
@@ -123,6 +130,7 @@ int main(int argc, char *argv[])
                 }
                 fprintf(stderr, "%08d:%s\n", len, out_buf);
                 fflush(stderr);
+                do_log("stderr", len, out_buf);
             } else if (evt.is_a(id_evt)) {
                 std::string event;
                 evt >> event;
@@ -133,9 +141,11 @@ int main(int argc, char *argv[])
                 }
                 fprintf(stderr, "%08d:%s\n", len, out_buf);
                 fflush(stderr);
+                do_log("stderr", len, out_buf);
             } else if (evt.is_a(id_readline_have_line)) {
                 std::string line;
                 evt >> line;
+                do_log("stdin ", line.length(), line.c_str());
                 const char *result = webwire_command(handle, line.c_str());
                 int len = snprintf(out_buf, buf_size, "%s", result);
                 if (check_buf_size(len)) {
@@ -143,6 +153,7 @@ int main(int argc, char *argv[])
                 }
                 fprintf(stdout, "%08d:%s\n", len, result);
                 fflush(stdout);
+                do_log("stdout", len, out_buf);
                 if (trim_copy(line) == "exit") {
                     go_on = false;
                 }
@@ -165,6 +176,7 @@ int main(int argc, char *argv[])
                 }
                 fprintf(stderr, "%08d:%s\n", len, out_buf);
                 fflush(stderr);
+                do_log("stderr", len, out_buf);
                 go_on = false;
             }
         }
@@ -192,6 +204,10 @@ int main(int argc, char *argv[])
     }
     fprintf(stderr, "%08d:%s\n", len, out_buf);
     fflush(stderr);
+
+    fclose(fh_log);
+
+    free(out_buf);
 
     return 0;
 }

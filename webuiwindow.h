@@ -17,6 +17,7 @@ extern "C" {
 
 class WebWireHandler;
 class WebWireProfile;
+class ExecJs;
 
 typedef enum {
     hidden = 0x000,
@@ -45,6 +46,7 @@ private:
     int             _webui_port;
     WebUIWindow    *_parent_win;
     bool            _disconnected;
+    ExecJs         *_exec_js;
 #ifdef _WINDOWS
     HWND            _win_handle;
 #else
@@ -83,6 +85,9 @@ public:
     bool disconnected();
     void setShowState(WebUiWindow_ShowState st);
     int showState();
+
+public:
+    void setExecJs(ExecJs *e);
 
 public:
 #ifdef _WINDOWS

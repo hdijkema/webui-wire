@@ -115,10 +115,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include_directories(${GTK_INCLUDE_DIRS})
     message("${GTK_INCLUDE_DIRS}")
     link_directories(${GTK_LIBRARY_DIRS})
-    target_link_libraries(webui-wire ${GTK_LIBRARIES})
 endif()
-
-
 
 #target_compile_definitions(libwebui-wire PRIVATE LIBWEBUI_WIRE_BUILDING)
 
@@ -162,6 +159,11 @@ add_dependencies(webui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefi
 link_target(webui-wire ${LIBPRE}webui-2-static)
 link_target(webui-wire ${LIBPRE}nativefiledialog-1)
 target_link_libraries(webui-wire upa::url)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(webui-wire ${GTK_LIBRARIES})
+endif()
+
 
 #add_dependencies(webui-wire libwebui-wire)
 

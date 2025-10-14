@@ -444,9 +444,20 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
 void WebUIWindow::handleWireEvent(webui_event_t *e)
 {
     std::string event = webui_get_string(e);
+    _handler->message(event);
     json j = json::parse(event);
     std::string evt = j["evt"];
-    _handler->evt(evt + ":" + asprintf("%d", _win) + ":" + event);
+    if (evt == "script-result") {
+        if (_exec_js != nullptr) {
+            // always expect string result here
+            _exec_js->setResult(j["result"], j["result_ok"], j["result_msg"]);
+            _exec_js = nullptr;
+        } else {
+            _handler->error(asprintf("handleWireEvent: Unexpected script-result: %s", event.c_str()));
+        }
+    } else {
+        _handler->evt(evt + ":" + asprintf("%d", _win) + ":" + event);
+    }
 }
 
 void WebUIWindow::handleResizeEvent(webui_event_t *e)
@@ -480,6 +491,7 @@ WebUIWindow::WebUIWindow(WebWireHandler *h, int win, const std::string &p, bool 
     _disconnected = false;
     _current_handle = -1;
     _handle_counter = 0;
+    _exec_js = nullptr;
 
     _webui_win = webui_new_window();
     h->message(asprintf("_webui_win = %d", _webui_win));
@@ -581,6 +593,11 @@ int WebUIWindow::showState()
 #endif
 }
 
+void WebUIWindow::setExecJs(ExecJs *e)
+{
+    _exec_js = e;
+}
+
 bool WebUIWindow::disconnected()
 {
     return _disconnected;
@@ -607,7 +624,7 @@ int WebUIWindow::show(const std::string &msg_or_url)
     if (_use_browser) {
         webui_show_browser(_webui_win, msg_or_url.c_str(), webui_browser::ChromiumBased);
     } else {
-        webui_show(_webui_win, msg_or_url.c_str());
+        webui_show_wv(_webui_win, msg_or_url.c_str());
     }
 #ifdef _WINDOWS
     //TODO: do this onces and position window in center of parent window.

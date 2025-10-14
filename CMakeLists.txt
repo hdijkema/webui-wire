@@ -119,7 +119,12 @@ endif()
 
 #target_compile_definitions(libwebui-wire PRIVATE LIBWEBUI_WIRE_BUILDING)
 
-add_executable(webui-wire main.cpp
+#set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+#set(BUILD_SHARED_LIBS OFF)
+#set(CMAKE_EXE_LINKER_FLAGS "-static")
+
+add_executable(webui-wire
+    main.cpp
     webui_wire.h
     webui_wire_defs.h
     i_webui_wire.h

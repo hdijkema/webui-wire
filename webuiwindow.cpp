@@ -215,6 +215,10 @@ void WebUIWindow::close()
             }
         }
 #endif
+#ifdef __linux
+        // We don't need to do something here.
+        // Gtk Handles this differently
+#endif
         webui_close(_webui_win);
         //webui_wait();
         //webui_destroy(_webui_win);
@@ -633,6 +637,16 @@ int WebUIWindow::show(const std::string &msg_or_url)
         HWND _parent_handle = _parent_win->_win_handle;
         if (_parent_handle) {
             EnableWindow(_parent_handle, FALSE);
+        }
+    }
+#endif
+#ifdef __linux
+    _win_handle = static_cast<GtkWindow *>(webui_gtk_get_window(_webui_win));
+    if (_parent_win != nullptr) {
+        GtkWindow * _parent_handle = _parent_win->_win_handle;
+        if (_parent_handle) {
+            gtk_window_set_transient_for(_win_handle, _parent_handle);
+            gtk_window_set_modal(_win_handle, true);
         }
     }
 #endif

@@ -4,7 +4,11 @@ project(webui-wire LANGUAGES CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-if(${CMAKE_BUILD_TYPE} STREQUAL Debug)
+if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     set(LIBKIND "d")
 else()
     set(LIBKIND "r")
@@ -169,7 +173,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(webui-wire ${GTK_LIBRARIES})
 endif()
 
-
 #add_dependencies(webui-wire libwebui-wire)
 
 include(GNUInstallDirs)
@@ -177,4 +180,6 @@ install(TARGETS webui-wire
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+install(FILES webui-wire.svg webui-wire.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons)
 

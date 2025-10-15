@@ -46,8 +46,33 @@ static void evt(const char *evt)
     _queue.enqueue(evt_event << e);
 }
 
+#ifdef __linux
+void webui_gtk_log_handler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer unused_data)
+{
+    const char *level = "Gtk-Unknown";
+    if (log_level & GLogLevelFlags::G_LOG_LEVEL_CRITICAL) { level = "Gtk-Critical"; }
+    else if (log_level & GLogLevelFlags::G_LOG_LEVEL_DEBUG) { level = "Gtk-Debug"; }
+    else if (log_level & GLogLevelFlags::G_LOG_LEVEL_ERROR) { level = "Gtk-Error"; }
+    else if (log_level & GLogLevelFlags::G_LOG_LEVEL_INFO) { level = "Gtk-Info"; }
+    else if (log_level & GLogLevelFlags::G_LOG_LEVEL_MESSAGE) { level = "Gtk-Message"; }
+    else if (log_level & GLogLevelFlags::G_LOG_LEVEL_WARNING) { level = "Gtk-Warning"; }
+    else if (log_level & GLogLevelFlags::G_LOG_FLAG_FATAL) { level = "Gtk-Fatal"; }
+    else if (log_level & GLogLevelFlags::G_LOG_FLAG_RECURSION) { level = "Gtk-Recursion"; }
+
+    std::string kind = "Gtk";
+    std::string msg = std::string(log_domain) + "-" + level + "-" + message;
+    log(kind.c_str(), msg.c_str());
+}
+#endif
+
 int main(int argc, char *argv[])
 {
+
+#ifdef __linux
+    // Gtk log handler
+    g_log_set_default_handler(webui_gtk_log_handler, NULL);
+#endif
+
     // create an event queue and wait for lines
 
 #ifdef __linux

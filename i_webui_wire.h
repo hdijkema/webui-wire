@@ -31,7 +31,7 @@ WEBUI_WIRE_EXPORT void webwire_set_signaller(webwire_handle h, void (*signal_ite
 WEBUI_WIRE_EXPORT bool webwire_set_handlers(webwire_handle h, void (*evt_handler)(const char *event),
                                                               void (*log_handler)(const char *kind, const char *msg));
 
-WEBUI_WIRE_EXPORT void webwire_process_gui(webwire_handle h);
+WEBUI_WIRE_EXPORT bool webwire_process_gui(webwire_handle h);
 
 WEBUI_WIRE_EXPORT webwire_handle webwire_current();
 WEBUI_WIRE_EXPORT void webwire_destroy(webwire_handle h);

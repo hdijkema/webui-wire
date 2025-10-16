@@ -657,8 +657,8 @@ defun(cmdFileOpen)
         bool ok;
         std::string result = h->fileOpen(win, title, directory, file_types, ok);
         if (ok) {
-            std::string r = std::string("\"") + replace(result, "\"", "\\\"") + "\"";
-            r_ok(asprintf("file-open:%d:%s", win, r.c_str()));
+            //std::string r = std::string("\"") + replace(result, "\"", "\\\"") + "\"";
+            r_ok(asprintf("file-open:%d:%s", win, result.c_str()));
         } else {
             r_nok(asprintf("file-open:%d", win));
         }
@@ -679,8 +679,8 @@ defun(cmdFileSave)
         bool ok;
         std::string result = h->fileSave(win, title, directory, file_types, overwrite, ok);
         if (ok) {
-            std::string r = std::string("\"") + replace(result, "\"", "\\\"") + "\"";
-            r_ok(asprintf("file-save:%d:%s", win, r.c_str()));
+            //std::string r = std::string("\"") + replace(result, "\"", "\\\"") + "\"";
+            r_ok(asprintf("file-save:%d:%s", win, result.c_str()));
         } else {
             r_nok(asprintf("file-save:%d", win));
         }
@@ -698,10 +698,10 @@ defun(cmdChooseDir)
         bool ok;
         std::string result = h->chooseDir(win, title, directory, ok);
         if (ok) {
-            std::string r = std::string("\"") + replace(result, "\"", "\\\"") + "\"";
-            r_ok(asprintf("file-open:%d:%s", win, r.c_str()));
+            //std::string r = std::string("\"") + replace(result, "\"", "\\\"") + "\"";
+            r_ok(asprintf("choose-dir:%d:%s", win, result.c_str()));
         } else {
-            r_nok(asprintf("file-open:%d", win));
+            r_nok(asprintf("choose-dir:%d", win));
         }
     }
 }

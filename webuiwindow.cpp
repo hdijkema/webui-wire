@@ -60,6 +60,16 @@ static bool web_ui_wire_on_close(size_t window)
     }
 }
 
+static bool web_ui_wire_on_navigation(size_t window)
+{
+    WebUIWindow *win = get_webui_window(window);
+    if (win != nullptr) {
+        return win->mayNavigate();
+    } else { // No window found, close always permitted
+        return true;
+    }
+}
+
 static const void *web_ui_wire_files_handler(size_t window, const char *filename, int* length)
 {
     //fprintf(stderr, "%s\n", filename);
@@ -228,8 +238,17 @@ void WebUIWindow::close()
 
 bool WebUIWindow::canClose()
 {
-    if (_closing) { return true; }
     _handler->evt(asprintf("close-request:%d", _win));
+    if (_closing) { return true; }
+    return false;
+}
+
+bool WebUIWindow::mayNavigate()
+{
+    if (_set_html_or_url_done) {
+        _set_html_or_url_done = false;
+        return true;
+    }
     return false;
 }
 
@@ -433,13 +452,14 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
         if (r_u.rfind(baseUrl(), 0) == 0) {
             kind = "set-html";
             r_u = r_u.substr(baseUrl().length());
-
         }
         json j;
         j["url"] = r_u;
         j["navigation-type"] = "standard";
         j["navigation-kind"] = kind;
-        _handler->evt(asprintf("navigate:%d:%s", _win, j.dump().c_str()));
+        std::string evt = asprintf("navigate:%d:%s", _win, j.dump().c_str());
+        _handler->message(evt);
+        _handler->evt(evt);
         return;
     }
     _handler->message(asprintf("webui-event: %s: %d %d", e->element, e->event_type, e->event_number));
@@ -488,6 +508,7 @@ WebUIWindow::WebUIWindow(WebWireHandler *h, int win, const std::string &p, bool 
     _ww_profile = nullptr;
     _closing = false;
     _in_set_html_or_url = false;
+    _set_html_or_url_done = false;
     _win_handle = NULL;
     _use_browser = use_browser;
     _handler = h;
@@ -503,13 +524,13 @@ WebUIWindow::WebUIWindow(WebWireHandler *h, int win, const std::string &p, bool 
 
     webui_set_file_handler_window(_webui_win, web_ui_wire_files_handler);
     webui_set_close_handler(_webui_win, web_ui_wire_on_close);
+    webui_set_navigation_handler(_webui_win, web_ui_wire_on_navigation);
     webui_set_icon(_webui_win, _default_favicon, "image/svg+xml");
 
     webui_bind(_webui_win, "", webui_event_handler);
     webui_bind(_webui_win, "web_ui_wire_handle_event", web_ui_wire_handle_event);
     webui_bind(_webui_win, "web_ui_wire_resize_event", web_ui_wire_handle_resize);
     webui_bind(_webui_win, "web_uit_wire_move_event", web_ui_wire_handle_move);
-
 
     //show(standardMessage());
 
@@ -624,6 +645,7 @@ int WebUIWindow::show(const std::string &msg_or_url)
 {
     int handle = newHandle();
     _in_set_html_or_url = true;
+    _set_html_or_url_done = true;
     _current_handle = handle;
     if (_use_browser) {
         webui_show_browser(_webui_win, msg_or_url.c_str(), webui_browser::ChromiumBased);

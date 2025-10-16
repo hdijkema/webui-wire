@@ -230,6 +230,7 @@ webwire_handle webwire_new()
         _log_handler("LOG", "WebWire Handler Started", h);
     }
 
+    if (_current != nullptr) { free(_current); }
     _current = h;
 
     return static_cast<webwire_handle>(h);
@@ -246,7 +247,7 @@ void webwire_destroy(webwire_handle handle)
         // First make sure we don't do any call back anymore.
         h->evt_handler = nullptr;
         h->log_handler = nullptr;
-        h->signal_item =nullptr;
+        h->signal_item = nullptr;
 
         if (s != webwire_invalid_existing_handle_destroy_this_one) {
             if (!h->quit_by_exit_command) {
@@ -295,9 +296,9 @@ void webwire_destroy(webwire_handle handle)
         h->size_command_result = 0;
         h->valid_handle = -1;
 
-        free(h);
+        //free(h);
 
-        _current = nullptr;
+        //_current = nullptr;
     }
 }
 
@@ -473,9 +474,7 @@ bool webwire_set_handlers(webwire_handle h, void (*evt_handler)(const char *evt)
     return false;
 }
 
-
-
-void webwire_process_gui(webwire_handle h)
+bool webwire_process_gui(webwire_handle h)
 {
 #ifdef __linux
     static bool initialized = false;
@@ -486,8 +485,14 @@ void webwire_process_gui(webwire_handle h)
         gtk_init(&argc, &av);
         initialized = true;
     }
-    while (gtk_events_pending()) {
-        gtk_main_iteration_do(0);
+    if (gtk_events_pending()) {
+        while (gtk_events_pending()) {
+            gtk_main_iteration_do(0);
+        }
+        return true;
+    } else {
+        return false;
     }
 #endif
+    return false;
 }

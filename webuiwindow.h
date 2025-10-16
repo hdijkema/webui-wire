@@ -40,6 +40,7 @@ private:
     std::string     _standard_msg;
     bool            _closing;
     bool            _in_set_html_or_url;
+    bool            _set_html_or_url_done;
     int             _current_handle;
     int             _handle_counter;
     bool            _use_browser;
@@ -106,6 +107,7 @@ public:
     void handleResizeEvent(webui_event_t *e);
     void handleMoveEvent(webui_event_t *e);
     bool canClose();
+    bool mayNavigate();
     const void *filesHandler(const char *file, int *length);
 
 public:

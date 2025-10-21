@@ -67,6 +67,9 @@ void webui_gtk_log_handler(const gchar *log_domain, GLogLevelFlags log_level, co
 
 int main(int argc, char *argv[])
 {
+    // dup stdout and stderr and make sure they are reopend to a temporary file
+
+
 
 #ifdef __linux
     // Gtk log handler

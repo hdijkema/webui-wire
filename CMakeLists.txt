@@ -104,8 +104,10 @@ else()
 endif()
 
 
-sub_target(${LIBPRE}nativefiledialog-1 nativefiledialog ${other_target} ${CMAKE_BUILD_TYPE})
-sub_target(${LIBPRE}webui-2-static webui ${other_target} Release) #Debug)
+#sub_target(${LIBPRE}nativefiledialog-1 nativefiledialog ${other_target} ${CMAKE_BUILD_TYPE})
+#sub_target(${LIBPRE}webui-2-static webui ${other_target} Debug) #Release) #Debug)
+add_subdirectory(deps/nativefiledialog)
+add_subdirectory(deps/webui)
 add_subdirectory(deps/upa)
 
 add_library(libwebui-wire STATIC
@@ -159,11 +161,14 @@ add_executable(webui-wire
 
 target_link_libraries(webui-wire libwebui-wire)
 
-add_dependencies(webui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefiledialog-1-${LIBKIND})
+#add_dependencies(webui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefiledialog-1-${LIBKIND})
+#add_dependencies(webui-wire ${LIBPRE}nativefiledialog-1-${LIBKIND})
 
-link_target(libwebui-wire ${LIBPRE}webui-2-static)
-link_target(libwebui-wire ${LIBPRE}nativefiledialog-1)
+#link_target(libwebui-wire ${LIBPRE}webui-2-static)
+#link_target(libwebui-wire ${LIBPRE}nativefiledialog-1)
 target_link_libraries(libwebui-wire upa::url)
+target_link_libraries(libwebui-wire webui)
+target_link_libraries(libwebui-wire nativefiledialog)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(webui-wire ${GTK_LIBRARIES})

@@ -11,9 +11,7 @@
 #include <gtk/gtk.h>
 #endif
 
-extern "C" {
 #include <webui.h>
-}
 
 #define VALID_HANDLE 0x3823743293821426LL
 
@@ -90,8 +88,9 @@ static enum_handle_status _webwire_valid_handle(webwire_handle handle, const cha
     return webwire_valid;
 }
 
-static void webui_wire_logger(webui_log_level_t level, const char *m, void *user_data)
+static void webui_wire_logger(size_t _level, const char *m, void *user_data)
 {
+    webui_logger_level level = static_cast<webui_logger_level>(_level);
     _webwire_handle *h = static_cast<_webwire_handle *>(user_data);
 
     if (_webwire_valid_handle(h, __FUNCTION__, __LINE__, true) == webwire_valid) {
@@ -114,17 +113,19 @@ static void webui_wire_logger(webui_log_level_t level, const char *m, void *user
         trim(msg);
 
         switch(level) {
-        case log_debug_detail: handler->debugDetail("webui-detail:" + msg);
+        //case log_debug_detail: handler->debugDetail("webui-detail:" + msg);
+        //    break;
+        case WEBUI_LOGGER_LEVEL_DEBUG:   {
+                if (msg.length() == 1 || (msg.length() == 5 && msg.starts_with("0x") and msg.ends_with(" "))) {
+                    handler->debugDetail(msg);
+                } else {
+                    handler->debug("webui-debug:" + msg);
+                }
+            }
             break;
-        case log_debug:   handler->debug("webui-debug:" + msg);
+        case WEBUI_LOGGER_LEVEL_INFO:    handler->message("webui-info:" + msg);
             break;
-        case log_info:    handler->message("webui-info:" + msg);
-            break;
-        case log_warning: handler->message("webui-warning:" + msg);
-            break;
-        case log_error:   handler->error("webui-error:" + msg);
-            break;
-        case log_fatal:   handler->error("webui-fatal:" + msg);
+        case WEBUI_LOGGER_LEVEL_ERROR:   handler->error("webui-error:" + msg);
             break;
         }
     }
@@ -216,7 +217,7 @@ webwire_handle webwire_new()
         // Only then we can add the custom logger.
         //auto ww_log_f = std::mem_fn(&_webwire_handle::webui_wire_logger);
         //auto cb = std::bind(&_webwire_handle::webui_wire_logger, h);
-        webui_set_custom_logger(webui_wire_logger, static_cast<void *>(h));
+        webui_set_logger(webui_wire_logger, static_cast<void *>(h));
         webui_set_config(webui_config::use_cookies, true);
 
         h->exec_thread = new std::thread([h]() {

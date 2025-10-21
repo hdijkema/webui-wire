@@ -523,8 +523,8 @@ WebUIWindow::WebUIWindow(WebWireHandler *h, int win, const std::string &p, bool 
     _windows[_webui_win] = this;
 
     webui_set_file_handler_window(_webui_win, web_ui_wire_files_handler);
-    webui_set_close_handler(_webui_win, web_ui_wire_on_close);
-    webui_set_navigation_handler(_webui_win, web_ui_wire_on_navigation);
+    webui_set_close_handler_wv(_webui_win, web_ui_wire_on_close);
+    //webui_set_navigation_handler_wv(_webui_win, web_ui_wire_on_navigation);
     webui_set_icon(_webui_win, _default_favicon, "image/svg+xml");
 
     webui_bind(_webui_win, "", webui_event_handler);
@@ -663,7 +663,7 @@ int WebUIWindow::show(const std::string &msg_or_url)
     }
 #endif
 #ifdef __linux
-    _win_handle = static_cast<GtkWindow *>(webui_gtk_get_window(_webui_win));
+    _win_handle = static_cast<GtkWindow *>(webui_get_native_window_handle_wv(_webui_win));
     if (_parent_win != nullptr) {
         GtkWindow * _parent_handle = _parent_win->_win_handle;
         if (_parent_handle) {

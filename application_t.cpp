@@ -13,7 +13,11 @@ Application_t *Application_t::_current_app = nullptr;
 std::string Application_t::sourceKey(Object_t *source, std::string event)
 {
     char buffer[1024];
+#ifdef __APPLE__
+    snprintf(buffer, 1024, "%p:%s", source, event.c_str());
+#else
     sprintf_s(buffer, 1024, "%p:%s", source, event.c_str());
+#endif
     std::string key(buffer);
     return key;
 }

@@ -4,6 +4,10 @@ project(webui-wire LANGUAGES CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+if(APPLE)
+    enable_language(OBJC)
+endif()
+
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release")
 endif()

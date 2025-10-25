@@ -1673,7 +1673,7 @@ void WebWireHandler::setShowState(int win, const std::string &state)
 
     if (state == "minimized") { st = minimized; }
     else if (state == "maximized") { st = maximized; }
-    else if (state == "normal") { st = normal; }
+    else if (state == "normal") { st = st_normal; }
     else if (state == "shown") { st = shown; }
     else if (state == "hidden") { st = hidden; }
 

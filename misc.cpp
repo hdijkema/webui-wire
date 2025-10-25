@@ -11,7 +11,11 @@ std::string asprintf(const char *fmt_str, ...)
     char *buffer = static_cast<char *>(malloc(102400));
     va_list args;
     va_start (args, fmt_str);
+#ifdef __APPLE__
+    vsnprintf(buffer, 102400, fmt_str, args);
+#else
     vsprintf_s(buffer, 102400, fmt_str, args);
+#endif
     va_end(args);
     std::string s(buffer);
     free(buffer);
@@ -75,7 +79,7 @@ void SetThreadName(std::thread *thread, const char* threadName)
 void SetThreadName(std::thread* thread, const char* threadName)
 {
     auto handle = thread->native_handle();
-    pthread_setname_np(handle,threadName);
+    //pthread_setname_np(handle, threadName);
 }
 #endif
 

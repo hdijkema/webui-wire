@@ -163,6 +163,12 @@ add_executable(webui-wire
     main.cpp
 )
 
+if(APPLE)
+    target_sources(libwebui-wire PRIVATE
+        main_apple.mm
+    )
+endif()
+
 target_link_libraries(webui-wire libwebui-wire)
 
 #add_dependencies(webui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefiledialog-1-${LIBKIND})

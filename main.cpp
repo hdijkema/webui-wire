@@ -3,6 +3,7 @@
 #include "readlineinthread.h"
 #include "misc.h"
 #include "event_t.h"
+#include "webui.h"
 
 #ifdef __linux
 #include <gtk/gtk.h>
@@ -65,6 +66,136 @@ void webui_gtk_log_handler(const gchar *log_domain, GLogLevelFlags log_level, co
 }
 #endif
 
+#ifdef __APPLE__
+const char *webwire_command_apple(void *handle, const char *cmd);
+void run_main_app_loop_apple();
+void stop_main_app_loop_apple();
+#endif
+
+
+static void mainLoop(webwire_handle handle, bool &go_on)
+{
+    int buf_size = 1024;
+    char *out_buf = static_cast<char *>(malloc(buf_size + 1));
+
+    auto check_buf_size = [&buf_size, &out_buf](int len) {
+        if (len > 0 && len > buf_size) {
+            buf_size = len * 2;
+            out_buf = static_cast<char *>(realloc(out_buf, buf_size + 1));
+            if (out_buf == nullptr) {
+                exit(2);
+            }
+            return true;
+        }
+        return false;
+    };
+
+    FILE *fh_log = fopen("/tmp/webui_wire.log", "wt");
+
+    auto do_log = [fh_log](const char *kind, int len, const char *msg) {
+        fprintf(fh_log, "%s-%08d:%s\n", kind, len, msg);
+        fflush(fh_log);
+    };
+
+    while (go_on) {
+        Event_t evt = _queue.dequeue();
+        if (!evt.isNull()) {
+            if (evt.is_a(id_log)) {
+                std::string kind;
+                std::string msg;
+                evt >> kind;
+                evt >> msg;
+                trim(msg);
+                int len = snprintf(out_buf, buf_size, "%s:%s", kind.c_str(), msg.c_str());
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "%s:%s", kind.c_str(), msg.c_str());
+                }
+                fprintf(stderr, "%08d:%s\n", len, out_buf);
+                fflush(stderr);
+                do_log("stderr", len, out_buf);
+            } else if (evt.is_a(id_evt)) {
+                std::string event;
+                evt >> event;
+                trim(event);
+                int len = snprintf(out_buf, buf_size, "%s:%s", "EVENT", event.c_str());
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "%s:%s", "EVENT", event.c_str());
+                }
+                fprintf(stderr, "%08d:%s\n", len, out_buf);
+                fflush(stderr);
+                do_log("stderr", len, out_buf);
+            } else if (evt.is_a(id_readline_have_line)) {
+                std::string line;
+                evt >> line;
+                do_log("stdin ", line.length(), line.c_str());
+#ifdef __APPLE__
+                const char *result = webwire_command_apple(handle, line.c_str());
+#else
+                const char *result = webwire_command(handle, line.c_str());
+#endif
+                int len = snprintf(out_buf, buf_size, "%s", result);
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "%s", result);
+                }
+                fprintf(stdout, "%08d:%s\n", len, result);
+                fflush(stdout);
+                do_log("stdout", len, out_buf);
+                if (trim_copy(line) == "exit") {
+                    go_on = false;
+                }
+            } else if (evt.is_a(id_readline_eof)) {
+                int len = snprintf(out_buf, buf_size, "EVENT:readline:EOF");
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "EVENT:readline:EOF");
+                }
+                fprintf(stderr, "%08d:%s\n", len, out_buf);
+                fflush(stderr);
+                go_on = false;
+            } else if (evt.is_a(id_readline_error)) {
+                std::string errmsg;
+                int no;
+                evt >> no;
+                evt >> errmsg;
+                int len = snprintf(out_buf, buf_size, "EVENT:readline error:%d:%s", no, errmsg.c_str());
+                if (check_buf_size(len)) {
+                    snprintf(out_buf, buf_size, "EVENT:readline error:%d:%s", no, errmsg.c_str());
+                }
+                fprintf(stderr, "%08d:%s\n", len, out_buf);
+                fflush(stderr);
+                do_log("stderr", len, out_buf);
+                go_on = false;
+            }
+        }
+#ifdef __linux
+        else {  // Idle processing, process Gtk events.
+            static bool initialized = false;
+            if (!initialized) {
+                gtk_init(&argc, &argv);
+                initialized = true;
+            }
+            while (gtk_events_pending()) {
+                gtk_main_iteration_do(0);
+            }
+        }
+#endif
+    }
+
+    int len = snprintf(out_buf, buf_size, "EVENT:exiting");
+    if (check_buf_size(len)) {
+        snprintf(out_buf, buf_size, "EVENT:exiting");
+    }
+    fprintf(stderr, "%08d:%s\n", len, out_buf);
+    fflush(stderr);
+
+    fclose(fh_log);
+
+    free(out_buf);
+
+#ifdef __APPLE__
+    stop_main_app_loop_apple();
+#endif
+}
+
 int main(int argc, char *argv[])
 {
     // dup stdout and stderr and make sure they are reopend to a temporary file
@@ -121,121 +252,19 @@ int main(int argc, char *argv[])
     });
     setThreadName(&msg_thread, "webui-wire-msg-thread");
 
-    int buf_size = 1024;
-    char *out_buf = static_cast<char *>(malloc(buf_size + 1));
-
-    auto check_buf_size = [&buf_size, &out_buf](int len) {
-        if (len > 0 && len > buf_size) {
-            buf_size = len * 2;
-            out_buf = static_cast<char *>(realloc(out_buf, buf_size + 1));
-            if (out_buf == nullptr) {
-                exit(2);
-            }
-            return true;
-        }
-        return false;
-    };
-
-    FILE *fh_log = fopen("/tmp/webui_wire.log", "wt");
-
-    auto do_log = [fh_log](const char *kind, int len, const char *msg) {
-        fprintf(fh_log, "%s-%08d:%s\n", kind, len, msg);
-        fflush(fh_log);
-    };
-
-    while (go_on) {
-        Event_t evt = _queue.dequeue();
-        if (!evt.isNull()) {
-            if (evt.is_a(id_log)) {
-                std::string kind;
-                std::string msg;
-                evt >> kind;
-                evt >> msg;
-                trim(msg);
-                int len = snprintf(out_buf, buf_size, "%s:%s", kind.c_str(), msg.c_str());
-                if (check_buf_size(len)) {
-                    snprintf(out_buf, buf_size, "%s:%s", kind.c_str(), msg.c_str());
-                }
-                fprintf(stderr, "%08d:%s\n", len, out_buf);
-                fflush(stderr);
-                do_log("stderr", len, out_buf);
-            } else if (evt.is_a(id_evt)) {
-                std::string event;
-                evt >> event;
-                trim(event);
-                int len = snprintf(out_buf, buf_size, "%s:%s", "EVENT", event.c_str());
-                if (check_buf_size(len)) {
-                    snprintf(out_buf, buf_size, "%s:%s", "EVENT", event.c_str());
-                }
-                fprintf(stderr, "%08d:%s\n", len, out_buf);
-                fflush(stderr);
-                do_log("stderr", len, out_buf);
-            } else if (evt.is_a(id_readline_have_line)) {
-                std::string line;
-                evt >> line;
-                do_log("stdin ", line.length(), line.c_str());
-                const char *result = webwire_command(handle, line.c_str());
-                int len = snprintf(out_buf, buf_size, "%s", result);
-                if (check_buf_size(len)) {
-                    snprintf(out_buf, buf_size, "%s", result);
-                }
-                fprintf(stdout, "%08d:%s\n", len, result);
-                fflush(stdout);
-                do_log("stdout", len, out_buf);
-                if (trim_copy(line) == "exit") {
-                    go_on = false;
-                }
-            } else if (evt.is_a(id_readline_eof)) {
-                int len = snprintf(out_buf, buf_size, "EVENT:readline:EOF");
-                if (check_buf_size(len)) {
-                    snprintf(out_buf, buf_size, "EVENT:readline:EOF");
-                }
-                fprintf(stderr, "%08d:%s\n", len, out_buf);
-                fflush(stderr);
-                go_on = false;
-            } else if (evt.is_a(id_readline_error)) {
-                std::string errmsg;
-                int no;
-                evt >> no;
-                evt >> errmsg;
-                int len = snprintf(out_buf, buf_size, "EVENT:readline error:%d:%s", no, errmsg.c_str());
-                if (check_buf_size(len)) {
-                    snprintf(out_buf, buf_size, "EVENT:readline error:%d:%s", no, errmsg.c_str());
-                }
-                fprintf(stderr, "%08d:%s\n", len, out_buf);
-                fflush(stderr);
-                do_log("stderr", len, out_buf);
-                go_on = false;
-            }
-        }
-#ifdef __linux
-        else {  // Idle processing, process Gtk events.
-            static bool initialized = false;
-            if (!initialized) {
-                gtk_init(&argc, &argv);
-                initialized = true;
-            }
-            while (gtk_events_pending()) {
-                gtk_main_iteration_do(0);
-            }
-        }
+#ifdef __APPLE__
+    std::thread ml([handle, &go_on]() {
+        mainLoop(handle, go_on);
+    });
+    run_main_app_loop_apple();
+    //webui_wait();
+#else
+    mainLoop(handle, go_on);
 #endif
-    }
 
     msg_thread.join();
     webwire_destroy(handle);
     delete reader;
-
-    int len = snprintf(out_buf, buf_size, "EVENT:exiting");
-    if (check_buf_size(len)) {
-        snprintf(out_buf, buf_size, "EVENT:exiting");
-    }
-    fprintf(stderr, "%08d:%s\n", len, out_buf);
-    fflush(stderr);
-
-    fclose(fh_log);
-
-    free(out_buf);
 
     return 0;
 }

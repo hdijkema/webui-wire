@@ -65,6 +65,10 @@ void ExecJs::run(const std::string &code)
 #define MAX_JS_BUF (100 *1024)      // Max 100Kb Buffer
 #define MAX_EXEC_TIME 30 //600           // 10 minutes maximum execution time
 
+#ifdef __APPLE__
+void process_events_apple();
+#endif
+
 std::string ExecJs::call(const std::string &code, bool &ok)
 {
     //char *buf = static_cast<char *>(malloc(MAX_JS_BUF));

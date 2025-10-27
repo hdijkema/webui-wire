@@ -1,0 +1,73 @@
+{
+	"id": "nl.dijkewijk.webui-wire",
+	"runtime": "org.gnome.Platform",
+	"runtime-version": "49",
+	"sdk": "org.gnome.Sdk",
+	"command": "webui-wire",
+	"build-options": { 
+		"build-args": [ "--share=network" ]
+	},
+	"modules": [
+		{
+			"name": "webui-wire",
+			"buildsystem": "cmake",
+			"build-commands": [
+				"install -Dm755 nl.dijkewijk.webui-wire.desktop /app/share/applications/nl.dijkewijk.webui-wire.desktop",
+				"install -Dm644 nl.dijkewijk.webui-wire.svg /app/share/icons/nl.dijkewijk.webui-wire.svg",
+				"install -Dm644 nl.dijkewijk.webui-wire-512.png /app/share/icons/nl.dijkewijk.webui-wire-512.png",
+				"install -Dm644 nl.dijkewijk.webui-wire-256.png /app/share/icons/nl.dijkewijk.webui-wire-256.png",
+				"install -Dm644 nl.dijkewijk.webui-wire-128.png /app/share/icons/nl.dijkewijk.webui-wire-128.png",
+				"install -Dm644 nl.dijkewijk.webui-wire-64.png /app/share/icons/nl.dijkewijk.webui-wire-64.png",
+				"install -Dm644 nl.dijkewijk.webui-wire-48.png /app/share/icons/nl.dijkewijk.webui-wire-48.png",
+				"install -Dm644 nl.dijkewijk.webui-wire-32.png /app/share/icons/nl.dijkewijk.webui-wire-32.png"
+			],
+			"sources": [
+				{
+					"type": "git",
+					"url": "https://github.com/hdijkema/webui-wire.git",
+					"tag": "v0.2.1"
+				},
+		                {
+                                 	"type": "file",
+                    			"path": "nl.dijkewijk.webui-wire.desktop"
+                		},
+		                {
+                                 	"type": "file",
+                    			"path": "nl.dijkewijk.webui-wire.svg"
+                		},
+		                {
+                                 	"type": "file",
+                    			"path": "nl.dijkewijk.webui-wire-512.png"
+                		},
+		                {
+                                 	"type": "file",
+                    			"path": "nl.dijkewijk.webui-wire-256.png"
+                		},
+		                {
+                                 	"type": "file",
+                    			"path": "nl.dijkewijk.webui-wire-128.png"
+                		},
+		                {
+                                 	"type": "file",
+                    			"path": "nl.dijkewijk.webui-wire-64.png"
+                		},
+		                {
+                                 	"type": "file",
+                    			"path": "nl.dijkewijk.webui-wire-48.png"
+                		},
+		                {
+                                 	"type": "file",
+                    			"path": "nl.dijkewijk.webui-wire-32.png"
+                		}
+			]
+		}
+	],
+	"finish-args": [
+		"--share=ipc",
+		"--socket=wayland",
+		"--socket=fallback-x11",
+		"--device=dri",
+		"--share=network",
+		"--filesystem=host"
+	]
+}

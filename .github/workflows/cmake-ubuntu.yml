@@ -1,6 +1,4 @@
-# This starter workflow is for a CMake project running on a single platform. There is a different starter workflow if you need cross-platform coverage.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-multi-platform.yml
-name: CMake on a single platform
+name: CMake for linux debian based builds (Ubuntu, Debian, Mint, etc.)
 
 on:
   release:
@@ -82,12 +80,11 @@ jobs:
       run: |
         ls -l ./build
 
-    - name: Upload
+    - name: Upload Ubuntu
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file:  ./build/webui-wire
         asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-${{ steps.machine-model.outputs.distro }}-${{ steps.machine-model.outputs.release }}-${{ steps.machine-model.outputs.model }}
         overwrite: true
-
 

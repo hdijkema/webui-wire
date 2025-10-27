@@ -37,14 +37,13 @@ jobs:
     - name: Display
       run: |
         ls -l /home/runner/work/webui-wire/webui-wire/build
-        ls -l /home/runner/work/webui-wire/webui-wire/build/Release
 
     - name: Upload
       # Upload this release to the latest release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file:  /home/runner/work/webui-wire/webui-wire/build/Release/webui-wire
+        file:  /home/runner/work/webui-wire/webui-wire/build/webui-wire
         asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-ubuntu-x86_64
         tag: ${{ github.ref }}
         overwrite: true

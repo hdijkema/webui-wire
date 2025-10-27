@@ -47,8 +47,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       id: machine-model
-      shell: bash
-    - run: |
+      run: |
         uname -a
         model=`uname -m`
         echo "model=$model" >> $GITHUB_OUTPUT

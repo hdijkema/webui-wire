@@ -55,6 +55,8 @@ jobs:
         echo "model=$model" >> $GITHUB_OUTPUT
         release=`lsb_release -r -s 2>/dev/null`
         echo "release=$release" >> $GITHUB_OUTPUT
+        distro=`lsb_release -s -i 2>/dev/null`
+        echo "distro=$distro" >> $GITHUB_OUTPUT
 
     - name: Remove man-db update
       run: |
@@ -63,33 +65,31 @@ jobs:
     - name: Test model and release
       run: |
         echo "model  : ${{ steps.machine-model.outputs.model }}"
+        echo "distro : ${{ steps.machine-model.outputs.distro }}"
         echo "release: ${{ steps.machine-model.outputs.release }}"
 
-          #- name: Install Requirements
-          #run: |
-        #sudo apt-get update -q 
-        #sudo apt-get install -y -q libgtk-3-dev
+    - name: Install Requirements
+      run: |
+        sudo apt-get update -q 
+        sudo apt-get install -y -q libgtk-3-dev
 
-          #- name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      #run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
-          #- name: Build
-      # Build your program with the given configuration
-      #run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-    - name: Display
+    - name: Display build directory
       run: |
         ls -l ./build
 
-        #- name: Upload
-        ## Upload this release to the latest release
-        #uses: svenstaro/upload-release-action@v2
-        #with:
-        #repo_token: ${{ secrets.GITHUB_TOKEN }}
-        #file:  ./build/webui-wire
-        #asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-ubuntu-${{ steps.machine-model.outputs.release }}-${{ steps.machine-model.outputs.model }}
-        #overwrite: true
+    - name: Upload
+        # Upload this release to the latest release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file:  ./build/webui-wire
+          asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-${{ steps.machine-model.outputs.distro }}-${{ steps.machine-model.outputs.release }}-${{ steps.machine-model.outputs.model }}
+          overwrite: true
 
 

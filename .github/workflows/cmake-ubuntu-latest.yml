@@ -57,7 +57,7 @@ jobs:
         sudo rm -f /var/lib/man-db/auto-update
 
     - name: Test model and release
-      run |
+      run: |
         echo "model  : ${{ steps.machine-model.outputs.model }}"
         echo "release: ${{ steps.machine-model.outputs.release }}"
 

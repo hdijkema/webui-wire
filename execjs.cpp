@@ -78,13 +78,13 @@ std::string ExecJs::call(const std::string &code, bool &ok)
     // Due to gtk, we need to execute javascript asynchronous.
 
     std::string script = "{ "
-                         "  let f = function(r, ok, m) { window._web_wire_put_evt({ evt: 'script-result', result: r, result_ok: ok, result_msg: m }); };\n"
+                         "  let webui_wire_09282_f = function(r, ok, m) { window._web_wire_put_evt({ evt: 'script-result', result: r, result_ok: ok, result_msg: m }); };\n"
                          "  try {\n"
-                         "    let g = function() { " + code + "};\n"
-                         "    let r = g();\n"
-                         "    f(r + '', true, '');\n"
-                         "  } catch (e) {\n"
-                         "    f('', false, e.message);\n"
+                         "    let webui_wire_93732_g = function() { " + code + "};\n"
+                         "    let webui_wire_83223_r = webui_wire_93732_g();\n"
+                         "    webui_wire_09282_f(webui_wire_83223_r + '', true, '');\n"
+                         "  } catch (webui_wire_82282_e) {\n"
+                         "    webui_wire_09282_f('', false, webui_wire_82282_e.message);\n"
                          "  }\n"
                          "}";
 

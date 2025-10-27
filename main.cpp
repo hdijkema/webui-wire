@@ -3,7 +3,7 @@
 #include "readlineinthread.h"
 #include "misc.h"
 #include "event_t.h"
-#include "webui.h"
+
 
 #ifdef __APPLE__
 #include "apple_utils.h"
@@ -166,11 +166,6 @@ static void mainLoop(webwire_handle handle, bool &go_on)
         }
 #ifdef __linux
         else {  // Idle processing, process Gtk events.
-            static bool initialized = false;
-            if (!initialized) {
-                gtk_init(&argc, &argv);
-                initialized = true;
-            }
             while (gtk_events_pending()) {
                 gtk_main_iteration_do(0);
             }
@@ -203,9 +198,13 @@ int main(int argc, char *argv[])
 {
     // dup stdout and stderr and make sure they are reopend to a temporary file
 
-
-
 #ifdef __linux
+    static bool initialized = false;
+    if (!initialized) {
+        gtk_init(&argc, &argv);
+        initialized = true;
+    }
+
     // Gtk log handler
     g_log_set_default_handler(webui_gtk_log_handler, NULL);
 #endif

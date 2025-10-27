@@ -15,6 +15,10 @@ extern "C" {
 #include <gtk/gtk.h>
 #endif
 
+#ifdef __APPLE__
+typedef void NSWindow;
+#endif
+
 class WebWireHandler;
 class WebWireProfile;
 class ExecJs;
@@ -24,7 +28,7 @@ typedef enum {
     shown = 0x100,
     minimized = 0x001,
     maximized = 0x002,
-    normal = 0x004
+    st_normal = 0x004
 } WebUiWindow_ShowState;
 
 class WebUIWindow : public Object_t
@@ -49,12 +53,12 @@ private:
     bool            _disconnected;
     ExecJs         *_exec_js;
 #ifdef _WINDOWS
-    HWND            _win_handle;
+        HWND        _win_handle;
 #else
     #ifdef __linux
         GtkWindow   *_win_handle;
     #else
-        error Not implemented yet
+        NSWindow    *_win_handle;
     #endif
 #endif
 
@@ -97,7 +101,7 @@ public:
 #ifdef __linux
     GtkWindow *nativeHandle();
 #else
-#error "Not implemented"
+    NSWindow *nativeHandle();
 #endif
 #endif
 

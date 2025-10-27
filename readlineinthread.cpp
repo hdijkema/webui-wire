@@ -45,7 +45,7 @@ void ReadLineInThread::haveEof()
     emit(evt_readline_eof);
 }
 
-#ifdef __linux
+#if defined(__linux__) || defined(__APPLE__)
 #define strerror_s(buf, size, nr) strerror_r(nr, buf, size)
 #endif
 
@@ -66,7 +66,6 @@ void ReadLineInThread::run()
     _wait_ms = 1500;
     while(_go_on) {
         char *s = nullptr;
-#if defined(__linux) || defined(_WINDOWS)
         char buffer[10240];
         fgets(buffer, 10240, stdin);
         if (feof(stdin)) {
@@ -81,6 +80,5 @@ void ReadLineInThread::run()
                 }
             }
         }
-#endif
     }
 }

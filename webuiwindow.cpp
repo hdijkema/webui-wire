@@ -104,6 +104,10 @@ static void webui_event_handler(webui_event_t *e)
 #define strnicmp strncasecmp
 #endif
 
+#ifdef __APPLE__
+#define strnicmp strncasecmp
+#endif
+
 static bool isHTML(const char *_buf, int max_search)
 {
     bool h = false;
@@ -586,7 +590,7 @@ void WebUIWindow::setShowState(WebUiWindow_ShowState st)
         webui_minimize(_webui_win);
     } else if (st == maximized) {
         webui_maximize(_webui_win);
-    } else if (st == normal) {
+    } else if (st == st_normal) {
 #ifdef _WINDOWS
         HWND handle = this->nativeHandle();
         ShowWindow(handle, SW_SHOWNORMAL);
@@ -634,7 +638,7 @@ GtkWindow *WebUIWindow::nativeHandle()
 #ifdef _WINDOWS
     HWND WebUIWindow::nativeHandle()
 #else
-#error "Not implemented"
+    NSWindow *WebUIWindow::nativeHandle()
 #endif
 #endif
 {

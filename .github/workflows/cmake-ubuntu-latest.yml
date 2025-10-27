@@ -36,13 +36,12 @@ jobs:
 
     - name: Upload
       # Upload this release to the latest release
-      uses: actions/upload-release-assets@v1.0.2
-      env: 
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: svenstaro/upload-release-action@v2
       with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./build/Release/webui-wire
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./build/Release/webui-wire
         asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-ubuntu-x86_64
-        asset_content_type: binary/octet-stream
+        tag: ${{ github.ref }}
+        overwrite: true
 
 

@@ -59,7 +59,6 @@ jobs:
         echo "release        : ${{ steps.system-info.outputs.release }}"
         echo "totalmem       : ${{ steps.system-info.outputs.totalmem }}"
     
-    - name: Get machine type
       id: machine-model
     - run: |
         uname -a

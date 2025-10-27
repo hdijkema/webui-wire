@@ -209,6 +209,10 @@ int main(int argc, char *argv[])
     g_log_set_default_handler(webui_gtk_log_handler, NULL);
 #endif
 
+#ifdef __APPLE__
+    init_app_apple();
+#endif
+
     // create an event queue and wait for lines
 
 #if defined(__linux) || defined(__APPLE__)

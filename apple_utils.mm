@@ -17,6 +17,20 @@ void runOnMainQueueWithoutDeadlocking(void (^block)(void))
 }
 
 
+void process_events_apple()
+{
+    NSApplication *app = [NSApplication sharedApplication];
+    NSEvent *event;
+
+    // Process all pending events
+    while ((event = [app nextEventMatchingMask:NSEventMaskAny
+                        untilDate:[NSDate distantPast]
+                        inMode:NSDefaultRunLoopMode
+                        dequeue:YES])) {
+        [app sendEvent:event];
+    }
+}
+
 const char *webwire_command_apple(void *handle, const char *cmd)
 {
     __block const char *r = NULL;
@@ -47,22 +61,53 @@ void run_main_app_loop_apple()
 
 void stop_main_app_loop_apple()
 {
+  @autoreleasepool {
     NSApplication *app = [NSApplication sharedApplication];
     [app terminate:nil];
+  }
 }
 
-void process_events_apple()
+void focus_window_apple(void *c_window)
 {
-    NSApplication *app = [NSApplication sharedApplication];
-    NSEvent *event;
+  NSWindow *window = (NSWindow *) c_window;
+  //[window makeKeyAndOrderFront:window];
+  //[window makeKeyWindow];
+  //[NSApp activateIgnoringOtherApps:YES];
+  //BOOL a = [window canBecomeKeyWindow];
+  //BOOL b = [window canBecomeMainWindow];
 
-    // Process all pending events
-    while ((event = [app nextEventMatchingMask:NSEventMaskAny
-                        untilDate:[NSDate distantPast]
-                        inMode:NSDefaultRunLoopMode
-                        dequeue:YES])) {
-        [app sendEvent:event];
-    }
+  //[window makeMainWindow];
+  //[window makeKeyWindow];
+  runOnMainQueueWithoutDeadlocking(^{
+    [NSApp activateIgnoringOtherApps: YES];
+    [window makeMainWindow];
+    [window makeKeyWindow];
+    [window makeKeyAndOrderFront:window];
+    //[window ]
+  });
+
+  NSApplication *app = [NSApplication sharedApplication];
+  [app run];
+
+  //process_events_apple();
+  //[window makeMainWindow];
+  //process_events_apple();
+  //NSApplication *app = [NSApplication sharedApplication];
+  //NSWindow *main_win = [app mainWindow];
+  //[window makeKeyAndOrderFront:main_win];
+  //[NSApp activateIgnoringOtherApps: YES];
+  //[window makeKeyAndOrderFront:nil];
+}
+
+void init_app_apple()
+{
+  [NSApplication sharedApplication];
+  [[NSRunningApplication currentApplication] activateWithOptions:(
+        NSApplicationActivateAllWindows
+  //     // |
+  //     // NSApplicationActivateIgnoringOtherApps
+    )];
+  //[app activateIgnoringOtherApps : YES];
 }
 
 

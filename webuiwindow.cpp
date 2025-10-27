@@ -10,6 +10,10 @@
 #include <regex>
 #include <string.h>
 
+#ifdef __APPLE__
+#include "apple_utils.h"
+#endif
+
 
 #define WEBWIREHANDLER ((Application_t::current() == nullptr) ? nullptr : (Application_t::current()->handler()))
 
@@ -448,6 +452,9 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
         return;
     } else if (e->event_type == WEBUI_EVENT_MOUSE_CLICK) {
         _handler->message(asprintf("Window %d (%d) mouseclick - clientid = %d", _win, _webui_win, e->client_id));
+        if (_win_handle != NULL) {
+            focus_window_apple(_win_handle);
+        }
         return;
     } else if (e->event_type == WEBUI_EVENT_NAVIGATION) {
         const char* url = webui_get_string(e);
@@ -678,6 +685,10 @@ int WebUIWindow::show(const std::string &msg_or_url)
             gtk_window_set_modal(_win_handle, true);
         }
     }
+#endif
+#ifdef __APPLE__
+    _win_handle = static_cast<void *>(webui_get_hwnd(_webui_win));
+    // TODO: add parent stuff.
 #endif
     _in_set_html_or_url = false;
     return handle;

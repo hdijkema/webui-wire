@@ -616,7 +616,7 @@ int WebUIWindow::showState()
     } else if (IsZoomed(handle)) {
         v += WebUiWindow_ShowState::maximized;
     } else {
-        v += WebUiWindow_ShowState::normal;
+        v += WebUiWindow_ShowState::st_normal;
     }
 
     return v;

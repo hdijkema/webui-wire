@@ -58,6 +58,12 @@ jobs:
         echo "platform       : ${{ steps.system-info.outputs.platform }}"
         echo "release        : ${{ steps.system-info.outputs.release }}"
         echo "totalmem       : ${{ steps.system-info.outputs.totalmem }}"
+    
+    - name: Get machine type
+      id: machine-model
+    - run: |
+        uname -a
+        echo ::set-output model=uname::$(uname -m)
 
     - name: Remove man-db update
       run: |
@@ -87,7 +93,7 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file:  ./build/webui-wire
-        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-ubuntu-${{ steps.system-info.outputs.release }}-x86_64
+        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-ubuntu-${{ steps.system-info.outputs.release }}-${{ steps.machine-model.outputs.model }}
         tag: ${{ github.ref }}
         overwrite: true
 

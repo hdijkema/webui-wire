@@ -663,7 +663,7 @@ int WebUIWindow::show(const std::string &msg_or_url)
     }
 #endif
 #ifdef __linux
-    _win_handle = static_cast<GtkWindow *>(webui_get_native_window_handle_wv(_webui_win));
+    _win_handle = static_cast<GtkWindow *>(webui_get_hwnd(_webui_win));
     if (_parent_win != nullptr) {
         GtkWindow * _parent_handle = _parent_win->_win_handle;
         if (_parent_handle) {

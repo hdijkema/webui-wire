@@ -98,7 +98,7 @@ static void webui_wire_logger(size_t _level, const char *m, void *user_data)
 
         std::string msg;
         if (!is_utf8(m, strlen(m))) {
-            int l = strlen(m);
+            /*int l = strlen(m);
             char *buf = strdup(m);
             while(l > 0 && !is_utf8(buf, l)) {
                 l -= 1;
@@ -107,6 +107,14 @@ static void webui_wire_logger(size_t _level, const char *m, void *user_data)
             msg = buf;
             msg += " (from invalid UTF-8)";
             free(buf);
+            */
+            int i;
+            const char *comma = "";
+            for(i = 0; i < strlen(m); i++) {
+                msg += comma + asprintf("%d", (int) m[i]);
+                comma = ",";
+            }
+            msg += " (invalid UTF-8)";
         } else {
             msg = m;
         }

@@ -2,7 +2,7 @@
 Name=WebUI Wire
 Comment=A wire protocol to use webui with Racket
 GenericName=WebUI Wire
-exec=webui-wire
+Exec=webui-wire
 Icon=nl.dijkewijk.webui-wire
 Terminal=true
 Type=Application

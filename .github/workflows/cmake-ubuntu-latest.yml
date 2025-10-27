@@ -20,6 +20,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Remove man-db update
+      run: |
+        sudo rm -f /var/lib/man-db/auto-update
+
     - name: Install Requirements
       run: |
         sudo apt-get update -q 

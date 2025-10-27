@@ -451,6 +451,9 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
         return;
     } else if (e->event_type == WEBUI_EVENT_NAVIGATION) {
         const char* url = webui_get_string(e);
+         _handler->message(asprintf("Window %d (%d) navigation - clientid = %d, url %s",
+                                   _win, _webui_win, e->client_id,
+                                   url));
         std::string r_u = url; //replace(url, "\"", "\\\"");
         std::string kind = "set-url";
         if (r_u.rfind(baseUrl(), 0) == 0) {

@@ -146,6 +146,7 @@ add_library(libwebui-wire STATIC
     ${webui-wire_SOURCE_DIR}/deps/upa/src/url.cpp
     httpresponse_t.h httpresponse_t.cpp
     is_utf8.cpp is_utf8.h
+    apple_utils.h
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -165,7 +166,7 @@ add_executable(webui-wire
 
 if(APPLE)
     target_sources(libwebui-wire PRIVATE
-        main_apple.mm
+        apple_utils.mm
     )
 endif()
 

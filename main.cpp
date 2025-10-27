@@ -5,6 +5,10 @@
 #include "event_t.h"
 #include "webui.h"
 
+#ifdef __APPLE__
+#include "apple_utils.h"
+#endif
+
 #ifdef __linux
 #include <gtk/gtk.h>
 #endif
@@ -66,12 +70,6 @@ void webui_gtk_log_handler(const gchar *log_domain, GLogLevelFlags log_level, co
 }
 #endif
 
-#ifdef __APPLE__
-const char *webwire_command_apple(void *handle, const char *cmd);
-void run_main_app_loop_apple();
-void stop_main_app_loop_apple();
-#endif
-
 
 static void mainLoop(webwire_handle handle, bool &go_on)
 {
@@ -128,11 +126,11 @@ static void mainLoop(webwire_handle handle, bool &go_on)
                 std::string line;
                 evt >> line;
                 do_log("stdin ", line.length(), line.c_str());
-#ifdef __APPLE__
-                const char *result = webwire_command_apple(handle, line.c_str());
-#else
+//#ifdef __APPLE__
+//                const char *result = webwire_command_apple(handle, line.c_str());
+//#else
                 const char *result = webwire_command(handle, line.c_str());
-#endif
+//#endif
                 int len = snprintf(out_buf, buf_size, "%s", result);
                 if (check_buf_size(len)) {
                     snprintf(out_buf, buf_size, "%s", result);
@@ -178,6 +176,11 @@ static void mainLoop(webwire_handle handle, bool &go_on)
             }
         }
 #endif
+#ifdef __APPLE__
+        else {
+            process_events_apple();
+        }
+#endif
     }
 
     int len = snprintf(out_buf, buf_size, "EVENT:exiting");
@@ -191,9 +194,9 @@ static void mainLoop(webwire_handle handle, bool &go_on)
 
     free(out_buf);
 
-#ifdef __APPLE__
-    stop_main_app_loop_apple();
-#endif
+//#ifdef __APPLE__
+//    stop_main_app_loop_apple();
+//#endif
 }
 
 int main(int argc, char *argv[])
@@ -209,8 +212,8 @@ int main(int argc, char *argv[])
 
     // create an event queue and wait for lines
 
-#ifdef __linux
-    _queue.setWait(2);
+#if defined(__linux) || defined(__APPLE__)
+    _queue.setWait(1);
 #else
     _queue.setWait(500);
 #endif
@@ -252,15 +255,15 @@ int main(int argc, char *argv[])
     });
     setThreadName(&msg_thread, "webui-wire-msg-thread");
 
-#ifdef __APPLE__
-    std::thread ml([handle, &go_on]() {
-        mainLoop(handle, go_on);
-    });
-    run_main_app_loop_apple();
-    //webui_wait();
-#else
+//#ifdef __APPLE__
+//    std::thread ml([handle, &go_on]() {
+//        mainLoop(handle, go_on);
+//    });
+//    run_main_app_loop_apple();
+//    //webui_wait();
+//#else
     mainLoop(handle, go_on);
-#endif
+//#endif
 
     msg_thread.join();
     webwire_destroy(handle);

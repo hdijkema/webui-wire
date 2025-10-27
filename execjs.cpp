@@ -4,6 +4,10 @@
 #include "webwirehandler.h"
 #include "misc.h"
 
+#ifdef __APPLE__
+#include "apple_utils.h"
+#endif
+
 static std::string makeResult(WebWireHandler *h, const Variant_t &v)
 {
     std::string in = v.toString();
@@ -65,10 +69,6 @@ void ExecJs::run(const std::string &code)
 #define MAX_JS_BUF (100 *1024)      // Max 100Kb Buffer
 #define MAX_EXEC_TIME 30 //600           // 10 minutes maximum execution time
 
-#ifdef __APPLE__
-void process_events_apple();
-#endif
-
 std::string ExecJs::call(const std::string &code, bool &ok)
 {
     //char *buf = static_cast<char *>(malloc(MAX_JS_BUF));
@@ -111,6 +111,9 @@ std::string ExecJs::call(const std::string &code, bool &ok)
         while (gtk_events_pending()) {
             gtk_main_iteration_do(0);
         }
+#endif
+#ifdef __APPLE__
+        process_events_apple();
 #endif
         std::chrono::milliseconds d = std::chrono::milliseconds(1);
         std::this_thread::sleep_for(d);

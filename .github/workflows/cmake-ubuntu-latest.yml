@@ -46,6 +46,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Get Machine Model info
       id: machine-model
       run: |
         uname -a

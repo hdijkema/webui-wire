@@ -1,4 +1,4 @@
-all: icons flatpak
+all: json icons flatpak
 
 
 flatpak: 
@@ -15,6 +15,8 @@ clean:
 	rm -rf repo
 	rm -f *.flatpak
 	rm -f *.png
+	rm -f *.json
+	rm -f v
 
 
 icons: 
@@ -24,3 +26,9 @@ icons:
 	convert -background none -density 1000 -resize 64x nl.dijkewijk.webui-wire.svg nl.dijkewijk.webui-wire-64.png
 	convert -background none -density 1000 -resize 48x nl.dijkewijk.webui-wire.svg nl.dijkewijk.webui-wire-48.png
 	convert -background none -density 1000 -resize 32x nl.dijkewijk.webui-wire.svg nl.dijkewijk.webui-wire-32.png
+
+
+json: ../webui_wire.h nl.dijkewijk.webui-wire.json.in v.c
+	gcc -o v v.c
+	TAG=`./v`;sed -e s/@@RELEASE@@/$$TAG/ <nl.dijkewijk.webui-wire.json.in >nl.dijkewijk.webui-wire.json
+	

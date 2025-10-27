@@ -8,6 +8,7 @@ release:
 
 clean:
 	cmake --build ./build/Release --target clean
+	(cd flatpak;make clean)
 
 flatpak: flatpak/webui-wire.flatpak
 	@echo done

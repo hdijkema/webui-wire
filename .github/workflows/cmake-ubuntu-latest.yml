@@ -84,12 +84,11 @@ jobs:
         ls -l ./build
 
     - name: Upload
-        # Upload this release to the latest release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file:  ./build/webui-wire
-          asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-${{ steps.machine-model.outputs.distro }}-${{ steps.machine-model.outputs.release }}-${{ steps.machine-model.outputs.model }}
-          overwrite: true
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file:  ./build/webui-wire
+        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-${{ steps.machine-model.outputs.distro }}-${{ steps.machine-model.outputs.release }}-${{ steps.machine-model.outputs.model }}
+        overwrite: true
 
 

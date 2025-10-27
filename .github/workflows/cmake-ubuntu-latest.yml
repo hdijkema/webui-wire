@@ -19,6 +19,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - uses: kenchan0130/actions-system-info@master
+      id: system-info
 
     - name: Remove man-db update
       run: |
@@ -40,15 +42,15 @@ jobs:
 
     - name: Display
       run: |
-        ls -l /home/runner/work/webui-wire/webui-wire/build
+        ls -l ./build
 
     - name: Upload
       # Upload this release to the latest release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file:  /home/runner/work/webui-wire/webui-wire/build/webui-wire
-        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-ubuntu-x86_64
+        file:  ./build/webui-wire
+        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-ubuntu-${{ steps.system-info.outputs.release }}-x86_64
         tag: ${{ github.ref }}
         overwrite: true
 

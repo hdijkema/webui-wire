@@ -37,6 +37,7 @@ jobs:
 
     - name: Get Machine Model info
       id: machine-model
+      shell: bash
       run: |
         echo "model=x86_64" >> $GITHUB_OUTPUT
         echo "release=win64" >> $GITHUB_OUTPUT
@@ -47,6 +48,7 @@ jobs:
         #        sudo rm -f /var/lib/man-db/auto-update
 
     - name: Test model and release
+      shell: bash
       run: |
         echo "model  : ${{ steps.machine-model.outputs.model }}"
         echo "distro : ${{ steps.machine-model.outputs.distro }}"
@@ -58,16 +60,20 @@ jobs:
           #        sudo apt-get install -y -q libgtk-3-dev
 
     - name: Configure CMake
+      shell: bash
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
+      shell: bash
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Display build directory
+      shell: bash
       run: |
         dir build
 
     - name: Upload
+      shell: bash
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}

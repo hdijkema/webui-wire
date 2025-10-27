@@ -42,9 +42,9 @@ jobs:
         echo "release=win64" >> $GITHUB_OUTPUT
         echo "distro=windows" >> $GITHUB_OUTPUT
 
-    - name: Remove man-db update
-      run: |
-        sudo rm -f /var/lib/man-db/auto-update
+        #    - name: Remove man-db update
+        #      run: |
+        #        sudo rm -f /var/lib/man-db/auto-update
 
     - name: Test model and release
       run: |

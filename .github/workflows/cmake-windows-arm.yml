@@ -1,4 +1,4 @@
-name: CMake webui-wire for windows
+name: CMake webui-wire for Windows Arm64
 
 on:
   release:

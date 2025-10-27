@@ -4,8 +4,8 @@ all: icons flatpak
 flatpak: 
 	rm -rf build-dir
 	flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-	flatpak-builder --force-clean --user --install-deps-from=flathub --repo=repo --install build-dir nl.dijkewijk.webui-wire.json
-	flatpak remove nl.dijkewijk.webui-wire
+	flatpak-builder -y --force-clean --user --install-deps-from=flathub --repo=repo --install build-dir nl.dijkewijk.webui-wire.json
+	flatpak -y remove nl.dijkewijk.webui-wire
 	flatpak build-bundle repo webui-wire.flatpak nl.dijkewijk.webui-wire --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo
 
 clean:

@@ -8,3 +8,6 @@ release:
 
 clean:
 	cmake --build ./build/Release --target clean
+
+flatpak:
+	(cd flatpak;make)

@@ -62,14 +62,14 @@ jobs:
 
     - name: Display build directory
       run: |
-        dir build
+        dir build\Release
 
     - name: Upload
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file:  ./build/webui-wire
-        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-${{ steps.machine-model.outputs.distro }}-${{ steps.machine-model.outputs.release }}-${{ steps.machine-model.outputs.model }}
+        file:  ./build/Release/webui-wire.exe
+        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-${{ steps.machine-model.outputs.distro }}-${{ steps.machine-model.outputs.release }}-${{ steps.machine-model.outputs.model }}.exe
         overwrite: true
 
 

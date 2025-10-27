@@ -46,27 +46,20 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - uses: kenchan0130/actions-system-info@master
-      id: system-info
-    - run: |
-        echo "cpu-core       : ${{ steps.system-info.outputs.cpu-core }}"
-        echo "cpu-model      : ${{ steps.system-info.outputs.cpu-model }}"
-        echo "hostname       : ${{ steps.system-info.outputs.hostname }}"
-        echo "kernel-release : ${{ steps.system-info.outputs.kernel-release }}"
-        echo "kernel-version : ${{ steps.system-info.outputs.kernel-version }}"
-        echo "name           : ${{ steps.system-info.outputs.name }}"
-        echo "platform       : ${{ steps.system-info.outputs.platform }}"
-        echo "release        : ${{ steps.system-info.outputs.release }}"
-        echo "totalmem       : ${{ steps.system-info.outputs.totalmem }}"
-    
       id: machine-model
     - run: |
         uname -a
-        echo "model=$(uname -m)" >> $GITHUB_OUTPUT
+        echo "model=$(uname -m)" >> "$GITHUB_OUTPUT"
+        echo "release=$(lsb_release -r -s 2>/dev/null)" >> "$GITHUB_OUTPUT"
 
     - name: Remove man-db update
       run: |
         sudo rm -f /var/lib/man-db/auto-update
+
+    - name: Test model and release
+      run |
+        echo "model  : ${{ steps.machine-model.outputs.model }}"
+        echo "release: ${{ steps.machine-model.outputs.release }}"
 
     - name: Install Requirements
       run: |
@@ -92,7 +85,7 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file:  ./build/webui-wire
-        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-ubuntu-${{ steps.system-info.outputs.release }}-${{ steps.machine-model.outputs.model }}
+        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-ubuntu-${{ steps.machine-model.outputs.release }}-${{ steps.machine-model.outputs.model }}
         overwrite: true
 
 

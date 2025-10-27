@@ -24,11 +24,11 @@ jobs:
       #
       # To add more build types (Release, Debug, RelWithDebInfo, etc.) customize the build_type list.
       matrix:
-        os: [windows-latest]
+        os: [windows-11-arm]
         build_type: [Release]
         c_compiler: [cl]
         include:
-          - os: windows-latest
+          - os: windows-11-arm
             c_compiler: cl
             cpp_compiler: cl
 
@@ -39,7 +39,7 @@ jobs:
       id: machine-model
       shell: bash
       run: |
-        echo "model=x86_64" >> $GITHUB_OUTPUT
+        echo "model=arm64" >> $GITHUB_OUTPUT
         echo "release=win64" >> $GITHUB_OUTPUT
         echo "distro=windows" >> $GITHUB_OUTPUT
 

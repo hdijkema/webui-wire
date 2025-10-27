@@ -26,23 +26,22 @@ jobs:
       #
       # To add more build types (Release, Debug, RelWithDebInfo, etc.) customize the build_type list.
       matrix:
-        #os: [ubuntu-latest, ubuntu-22.04, ubuntu-24.04-arm, ubuntu-22.04-arm ]
-        os: [ubuntu-latest ]
+        os: [ubuntu-latest, ubuntu-22.04, ubuntu-24.04-arm, ubuntu-22.04-arm ]
         build_type: [Release]
         c_compiler: [gcc]
         include:
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
-              #- os: ubuntu-22.04
-              #c_compiler: gcc
-              #cpp_compiler: g++
-              #- os: ubuntu-22.04-arm
-              #c_compiler: gcc
-              #cpp_compiler: g++
-              #- os: ubuntu-24.04-arm
-              #c_compiler: gcc
-              #cpp_compiler: g++
+          - os: ubuntu-22.04
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: ubuntu-22.04-arm
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: ubuntu-24.04-arm
+            c_compiler: gcc
+            cpp_compiler: g++
 
     steps:
     - uses: actions/checkout@v4

@@ -3,14 +3,15 @@
 #include "readlineinthread.h"
 #include "misc.h"
 #include "event_t.h"
+#include "webui_utils.h"
 
+#include <io.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #ifdef __APPLE__
 #include "apple_utils.h"
-#endif
-
-#ifdef __linux
-#include <gtk/gtk.h>
 #endif
 
 #define id_log  "log-message"
@@ -18,6 +19,28 @@
 
 #define id_evt  "event"
 #define evt_event Event_t(id_evt, nullptr)
+
+static bool fReopenOutputStreamToTempFile(FILE *stream, std::string &filename)
+{
+#ifdef WIN32
+    char name[10240];
+    errno_t err = tmpnam_s(name, 10240);
+    if (err) {
+        return false;
+    } else {
+        FILE *f = NULL;
+        err = freopen_s(&f, name, "wt", stream);
+        if (err == 0) {
+            filename = name;
+            return true;
+        } else {
+            return false;
+        }
+    }
+#else
+    return false;
+#endif
+}
 
 static EventQueue_t _queue;
 
@@ -71,10 +94,12 @@ void webui_gtk_log_handler(const gchar *log_domain, GLogLevelFlags log_level, co
 #endif
 
 
-static void mainLoop(webwire_handle handle, bool &go_on)
+static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
 {
     int buf_size = 1024;
     char *out_buf = static_cast<char *>(malloc(buf_size + 1));
+
+    WebUI_Utils webui_utils;
 
     auto check_buf_size = [&buf_size, &out_buf](int len) {
         if (len > 0 && len > buf_size) {
@@ -88,11 +113,18 @@ static void mainLoop(webwire_handle handle, bool &go_on)
         return false;
     };
 
-    FILE *fh_log = fopen("/tmp/webui_wire.log", "wt");
+    FILE *fh_log = NULL;
+#ifdef WIN32
+    //fopen_s(&fh_log, "/tmp/webui_wire.log", "wt");
+#else
+    fh_log = fopen("/tmp/webui_wire.log", "wt");
+#endif
 
     auto do_log = [fh_log](const char *kind, int len, const char *msg) {
-        fprintf(fh_log, "%s-%08d:%s\n", kind, len, msg);
-        fflush(fh_log);
+        if (fh_log != NULL) {
+            fprintf(fh_log, "%s-%08d:%s\n", kind, len, msg);
+            fflush(fh_log);
+        }
     };
 
     while (go_on) {
@@ -108,8 +140,8 @@ static void mainLoop(webwire_handle handle, bool &go_on)
                 if (check_buf_size(len)) {
                     snprintf(out_buf, buf_size, "%s:%s", kind.c_str(), msg.c_str());
                 }
-                fprintf(stderr, "%08d:%s\n", len, out_buf);
-                fflush(stderr);
+                fprintf(err, "%08d:%s\n", len, out_buf);
+                fflush(err);
                 do_log("stderr", len, out_buf);
             } else if (evt.is_a(id_evt)) {
                 std::string event;
@@ -119,8 +151,8 @@ static void mainLoop(webwire_handle handle, bool &go_on)
                 if (check_buf_size(len)) {
                     snprintf(out_buf, buf_size, "%s:%s", "EVENT", event.c_str());
                 }
-                fprintf(stderr, "%08d:%s\n", len, out_buf);
-                fflush(stderr);
+                fprintf(err, "%08d:%s\n", len, out_buf);
+                fflush(err);
                 do_log("stderr", len, out_buf);
             } else if (evt.is_a(id_readline_have_line)) {
                 std::string line;
@@ -135,8 +167,8 @@ static void mainLoop(webwire_handle handle, bool &go_on)
                 if (check_buf_size(len)) {
                     snprintf(out_buf, buf_size, "%s", result);
                 }
-                fprintf(stdout, "%08d:%s\n", len, result);
-                fflush(stdout);
+                fprintf(out, "%08d:%s\n", len, result);
+                fflush(out);
                 do_log("stdout", len, out_buf);
                 if (trim_copy(line) == "exit") {
                     go_on = false;
@@ -146,8 +178,8 @@ static void mainLoop(webwire_handle handle, bool &go_on)
                 if (check_buf_size(len)) {
                     snprintf(out_buf, buf_size, "EVENT:readline:EOF");
                 }
-                fprintf(stderr, "%08d:%s\n", len, out_buf);
-                fflush(stderr);
+                fprintf(err, "%08d:%s\n", len, out_buf);
+                fflush(err);
                 go_on = false;
             } else if (evt.is_a(id_readline_error)) {
                 std::string errmsg;
@@ -158,34 +190,24 @@ static void mainLoop(webwire_handle handle, bool &go_on)
                 if (check_buf_size(len)) {
                     snprintf(out_buf, buf_size, "EVENT:readline error:%d:%s", no, errmsg.c_str());
                 }
-                fprintf(stderr, "%08d:%s\n", len, out_buf);
-                fflush(stderr);
+                fprintf(err, "%08d:%s\n", len, out_buf);
+                fflush(err);
                 do_log("stderr", len, out_buf);
                 go_on = false;
             }
         }
-#ifdef __linux
-        else {  // Idle processing, process Gtk events.
-            while (gtk_events_pending()) {
-                gtk_main_iteration_do(0);
-            }
-        }
-#endif
-#ifdef __APPLE__
-        else {
-            process_events_apple();
-        }
-#endif
+
+        webui_utils.processCurrentEvents();
     }
 
     int len = snprintf(out_buf, buf_size, "EVENT:exiting");
     if (check_buf_size(len)) {
         snprintf(out_buf, buf_size, "EVENT:exiting");
     }
-    fprintf(stderr, "%08d:%s\n", len, out_buf);
-    fflush(stderr);
+    fprintf(err, "%08d:%s\n", len, out_buf);
+    fflush(err);
 
-    fclose(fh_log);
+    if (fh_log != NULL) { fclose(fh_log); }
 
     free(out_buf);
 
@@ -197,6 +219,49 @@ static void mainLoop(webwire_handle handle, bool &go_on)
 int main(int argc, char *argv[])
 {
     // dup stdout and stderr and make sure they are reopend to a temporary file
+#ifdef WIN32
+    _setmode(_fileno(stdout), _O_BINARY);
+    _setmode(_fileno(stderr), _O_BINARY);
+    int my_stderr_fh = _dup(_fileno(stderr));
+    FILE *my_stderr = _fdopen(my_stderr_fh, "wt");
+    int my_stdout_fh = _dup(_fileno(stdout));
+    FILE *my_stdout = _fdopen(my_stdout_fh, "wt");
+#else
+    int my_stderr_fh = dup(fileno(stderr));
+    FILE *my_stderr = fdopen(my_stderr_fh, "wt");
+    int my_stdout_fh = dup(fileno(stdout));
+    FILE *my_stdout = fdopen(my_stdout_fh, "wt");
+#endif
+
+    if (my_stderr == NULL) {
+        fprintf(stderr, "Unexpected! Cannot dup stderr.\n");
+        exit(1);
+    }
+
+    if (my_stdout == NULL) {
+        fprintf(stderr, "Unexpected! Cannot dup stdout.\n");
+    }
+
+    // fReopen Open Temp Output File
+    std::string stderr_file;
+    bool stderr_ok = fReopenOutputStreamToTempFile(stderr, stderr_file);
+    std::string stdout_file;
+    bool stdout_ok = fReopenOutputStreamToTempFile(stdout, stdout_file);
+
+    if (stderr_ok) {
+        std::string msg = std::string("stderr reopened for internal use to ") + stderr_file;
+        log("init", msg.c_str());
+    } else {
+        log("init", "Cannot reopen stderr for internal use");
+    }
+
+    if (stdout_ok) {
+        std::string msg = std::string("stdout reopened for internal use to ") + stdout_file;
+        log("init", msg.c_str());
+    } else {
+        log("init", "Cannot reopen stdout for internal use");
+    }
+
 
 #ifdef __linux
     static bool initialized = false;
@@ -229,7 +294,7 @@ int main(int argc, char *argv[])
     }
 
     StdWebWire std_ww;
-    ReadLineInThread *reader = new ReadLineInThread();
+    ReadLineInThread *reader = new ReadLineInThread(stdin);
     connect(reader, id_readline_eof, &std_ww);
     connect(reader, id_readline_error, &std_ww);
     connect(reader, id_readline_have_line, &std_ww);
@@ -265,12 +330,22 @@ int main(int argc, char *argv[])
 //    run_main_app_loop_apple();
 //    //webui_wait();
 //#else
-    mainLoop(handle, go_on);
+    mainLoop(handle, go_on, my_stdout, my_stderr);
 //#endif
 
     msg_thread.join();
     webwire_destroy(handle);
     delete reader;
+
+    if (stderr_ok) {
+        fclose(stderr);
+        _unlink(stderr_file.c_str());
+    }
+
+    if (stdout_ok) {
+        fclose(stdout);
+        _unlink(stdout_file.c_str());
+    }
 
     return 0;
 }

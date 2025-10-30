@@ -7,6 +7,7 @@
 #include "webwireprofile.h"
 #include "httpresponse_t.h"
 #include "mimetypes_t.h"
+#include "webui_utils.h"
 #include <regex>
 #include <string.h>
 
@@ -304,7 +305,8 @@ std::string WebUIWindow::standardMessage()
 
 const void *WebUIWindow::filesHandler(const char *url_path, int *length)
 {
-    _handler->message(std::string("Serving url path: ") + url_path);
+    _served++;
+    _handler->message(asprintf("Serving url path (%d): ", _served) + url_path);
     std::regex re("[/](.*)");
     std::smatch m;
     std::string file_path = url_path;
@@ -446,15 +448,17 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
             if (t != nullptr) {
                 t->setSingleShot(true);
                 t->setTimeout(500);            // Check if still disconnected after 1.5seconds
-                t->start();
+                //t->start();
             }
         }
         return;
     } else if (e->event_type == WEBUI_EVENT_MOUSE_CLICK) {
         _handler->message(asprintf("Window %d (%d) mouseclick - clientid = %d", _win, _webui_win, e->client_id));
+#ifdef __APPLE__
         if (_win_handle != NULL) {
             focus_window_apple(_win_handle);
         }
+#endif
         return;
     } else if (e->event_type == WEBUI_EVENT_NAVIGATION) {
         const char* url = webui_get_string(e);
@@ -493,6 +497,9 @@ void WebUIWindow::handleWireEvent(webui_event_t *e)
         } else {
             _handler->error(asprintf("handleWireEvent: Unexpected script-result: %s", event.c_str()));
         }
+    } else if (evt == "page-loaded") {
+        _page_loaded = true;
+        _handler->evt(evt + ":" + asprintf("%d", _win) + ":" + event);
     } else {
         _handler->evt(evt + ":" + asprintf("%d", _win) + ":" + event);
     }
@@ -528,9 +535,11 @@ WebUIWindow::WebUIWindow(WebWireHandler *h, int win, const std::string &p, bool 
     _handler = h;
     _parent_win = parent_win;
     _disconnected = false;
+    _page_loaded = false;
     _current_handle = -1;
     _handle_counter = 0;
     _exec_js = nullptr;
+    _served = 0;
 
     _webui_win = webui_new_window();
     h->message(asprintf("_webui_win = %d", _webui_win));
@@ -661,11 +670,15 @@ int WebUIWindow::show(const std::string &msg_or_url)
     _in_set_html_or_url = true;
     _set_html_or_url_done = true;
     _current_handle = handle;
+
+    _page_loaded = false;
+
     if (_use_browser) {
         webui_show_browser(_webui_win, msg_or_url.c_str(), webui_browser::ChromiumBased);
     } else {
         webui_show_wv(_webui_win, msg_or_url.c_str());
     }
+
 #ifdef _WINDOWS
     //TODO: do this onces and position window in center of parent window.
     _win_handle = static_cast<HWND>(webui_win32_get_hwnd(_webui_win));
@@ -690,6 +703,15 @@ int WebUIWindow::show(const std::string &msg_or_url)
     _win_handle = static_cast<void *>(webui_get_hwnd(_webui_win));
     // TODO: add parent stuff.
 #endif
+
+    // Wait until the window get's connected again.
+    int show_timeout = 30;
+    WebUI_Utils u;
+    WebUI_Utils::WaitResult r = u.waitUntil([this]() { return _page_loaded; },
+                                            show_timeout * 1000
+                                            );
+    _handler->message(asprintf("Result of WebUI_Utils::waitUntil = %d", r));
+
     _in_set_html_or_url = false;
     return handle;
 }

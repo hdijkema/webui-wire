@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(webui-wire LANGUAGES CXX)
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+#set(CMAKE_VERBOSE_MAKEFILE ON)
 
 if(APPLE)
     enable_language(OBJC)
@@ -147,6 +147,7 @@ add_library(libwebui-wire STATIC
     httpresponse_t.h httpresponse_t.cpp
     is_utf8.cpp is_utf8.h
     apple_utils.h
+    webui_utils.h webui_utils.cpp
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

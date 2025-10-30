@@ -23,9 +23,10 @@ private:
     std::thread::id         _my_id;
     std::thread            *_thread;
     int                     _wait_ms;
+    FILE                   *_in;
 
 public:
-    explicit ReadLineInThread();
+    explicit ReadLineInThread(FILE *in);
     ~ReadLineInThread();
 
 public:

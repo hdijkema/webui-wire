@@ -3,6 +3,7 @@
 #include "application_t.h"
 #include "misc.h"
 #include "is_utf8.h"
+#include "webui_utils.h"
 
 #include <chrono>
 #include <thread>
@@ -485,23 +486,7 @@ bool webwire_set_handlers(webwire_handle h, void (*evt_handler)(const char *evt)
 
 bool webwire_process_gui(webwire_handle h)
 {
-#ifdef __linux
-    static bool initialized = false;
-    static int argc = 0;
-    static const char *argv[] = { NULL };
-    if (!initialized) {
-        char **av = (char **) argv;
-        gtk_init(&argc, &av);
-        initialized = true;
-    }
-    if (gtk_events_pending()) {
-        while (gtk_events_pending()) {
-            gtk_main_iteration_do(0);
-        }
-        return true;
-    } else {
-        return false;
-    }
-#endif
-    return false;
+    WebUI_Utils u;
+    u.processCurrentEvents();
+    return true;
 }

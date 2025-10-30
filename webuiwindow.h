@@ -51,7 +51,9 @@ private:
     int             _webui_port;
     WebUIWindow    *_parent_win;
     bool            _disconnected;
+    bool            _page_loaded;
     ExecJs         *_exec_js;
+    int             _served;
 #ifdef _WINDOWS
         HWND        _win_handle;
 #else

@@ -3,6 +3,7 @@
 #include "webuiwindow.h"
 #include "webwirehandler.h"
 #include "misc.h"
+#include "webui_utils.h"
 
 #ifdef __APPLE__
 #include "apple_utils.h"
@@ -104,23 +105,11 @@ std::string ExecJs::call(const std::string &code, bool &ok)
     _window->setExecJs(this);
 
     _result_set = false;
-    int tick = 0;
-    int timeout_ticks = MAX_EXEC_TIME * 1000;
-    while(!_result_set && tick < timeout_ticks) {
-#ifdef __linux
-        while (gtk_events_pending()) {
-            gtk_main_iteration_do(0);
-        }
-#endif
-#ifdef __APPLE__
-        process_events_apple();
-#endif
-        std::chrono::milliseconds d = std::chrono::milliseconds(1);
-        std::this_thread::sleep_for(d);
-        tick += 1;
-    }
+    WebUI_Utils u;
 
-    if (tick >= timeout_ticks) {
+    WebUI_Utils::WaitResult r = u.waitUntil([this](){ return _result_set; }, MAX_EXEC_TIME * 1000);
+
+    if (r == WebUI_Utils::wu_timeout) {
         _handler->error("ExecJs: Timeout for code " + code);
         _window->setExecJs(nullptr);
         std::string s = "";

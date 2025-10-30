@@ -7,14 +7,14 @@
 #include <sys/select.h>
 #endif
 
-ReadLineInThread::ReadLineInThread()
+ReadLineInThread::ReadLineInThread(FILE *in) : _in(in)
 {
     _buffer_len = 10 * 1024 * 1024;      // max bufferlen, i.e. max line len = 10MB
     _buffer = static_cast<char *>(malloc(_buffer_len + 1));
     _go_on = true;
     _thread = new std::thread([this]() { this->run(); });
     setThreadName(_thread, "ReadLineInThread");
-    _wait_ms = 25;
+    _wait_ms = 1500;
 }
 
 ReadLineInThread::~ReadLineInThread()
@@ -63,15 +63,13 @@ void ReadLineInThread::haveError(int error_number)
 
 void ReadLineInThread::run()
 {
-    _wait_ms = 1500;
     while(_go_on) {
         char *s = nullptr;
-        char buffer[10240];
-        fgets(buffer, 10240, stdin);
-        if (feof(stdin)) {
+        fgets(_buffer, _buffer_len, _in);
+        if (feof(_in)) {
             _go_on = false;
         } else {
-            std::string line = buffer;
+            std::string line = _buffer;
             trim(line);
             if (line != "") {
                 haveALine(line);

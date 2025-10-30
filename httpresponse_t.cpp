@@ -134,7 +134,7 @@ const char *HttpResponse_t::response(int &content_length)
              asprintf("Content-length: %d\r\n", size) +
              "\r\n";
 
-    _handler->message(header);
+    //_handler->message(header);
 
     char *resp = static_cast<char *>(webui_malloc(size + header.size() + 1));
     memcpy(resp, header.c_str(), header.size());

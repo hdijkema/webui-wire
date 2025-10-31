@@ -3,7 +3,6 @@
 
 #include "object_t.h"
 #include "misc.h"
-#include "url.h"
 #include "fileinfo_t.h"
 #include <string>
 #include <functional>
@@ -117,7 +116,7 @@ public:
     const void *filesHandler(const char *file, int *length);
 
 public:
-    int setUrl(const upa::url &u);
+    int setUrl(const std::string &u);
     int  setHtml(std::string url);
 
 public:

@@ -98,7 +98,7 @@ static void webui_wire_logger(size_t _level, const char *m, void *user_data)
         WebWireHandler *handler = h->handler;
 
         std::string msg;
-        if (!is_utf8(m, strlen(m))) {
+        if (!is_utf8(m)) {
             /*int l = strlen(m);
             char *buf = strdup(m);
             while(l > 0 && !is_utf8(buf, l)) {

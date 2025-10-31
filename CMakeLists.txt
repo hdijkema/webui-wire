@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(webui-wire LANGUAGES CXX)
+enable_language(C)
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -85,21 +86,19 @@ function(link_target target lib)
 endfunction()
 
 git_dep(webui https://github.com/hdijkema/webui.git)
-git_dep(upa https://github.com/upa-url/upa.git)
+git_dep(CxxUrl https://github.com/chmike/CxxUrl.git)
 git_dep(json https://github.com/nlohmann/json.git)
 git_dep(nativefiledialog https://github.com/hdijkema/nativefiledialog.git)
 
-include_directories(.)
+include_directories(. include include/base include/utils)
 include_directories(deps/webui/include)
 include_directories(deps/nativefiledialog/src/include)
 include_directories(deps/json/include deps/json/include/nlohmann)
-include_directories(deps/upa/include/ deps/upa/include/upa)
+include_directories(deps/cxxurl)
 
 if(TARGET clean)
-    set(upa_target clean)
     set(other_target clean)
 else()
-    set(upa_target upa_url)
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(other_target ALL_BUILD)
     else()
@@ -108,46 +107,43 @@ else()
 endif()
 
 
-#sub_target(${LIBPRE}nativefiledialog-1 nativefiledialog ${other_target} ${CMAKE_BUILD_TYPE})
-#sub_target(${LIBPRE}webui-2-static webui ${other_target} Debug) #Release) #Debug)
 add_subdirectory(deps/nativefiledialog)
 add_subdirectory(deps/webui)
-add_subdirectory(deps/upa)
+add_subdirectory(deps/CxxUrl)
 
 add_library(libwebui-wire STATIC
-    webui_wire.h
-    webui_wire_defs.h
-    i_webui_wire.h
-    i_webui_wire.cpp
 
-    misc.h misc.cpp
-    variant_t.h
+    # main webui-wire stuff
+    include/webui_wire.h include/webui_wire_defs.h
 
-    application_t.h application_t.cpp
-    object_t.h object_t.cpp
-    eventqueue_t.h eventqueue_t.cpp
+    # interface, possibly for FFI
+    include/i_webui_wire.h src/i_webui_wire.cpp
 
-    utf8_strings.h utf8_strings.cpp
+    # webui-wire / webui related
+    include/webwirehandler.h src/webwirehandler.cpp
+    include/webwireprofile.h src/webwireprofile.cpp
+    include/webuiwindow.h src/webuiwindow.cpp
+    include/webwirestandarddialogs.h src/webwirestandarddialogs.cpp
+    include/readlineinthread.h src/readlineinthread.cpp
+    include/execjs.h src/execjs.cpp
+    include/mimetypes_t.h src/mimetypes_t.cpp
+    include/default_css.h src/default_css.cpp
+    include/httpresponse_t.h src/httpresponse_t.cpp
 
-    readlineinthread.h readlineinthread.cpp
-    timer_t.h timer_t.cpp
-    event_t.h event_t.cpp
-    fileinfo_t.h fileinfo_t.cpp
+    # Base functionality
+    include/base/object_t.h src/base/object_t.cpp
+    include/base/eventqueue_t.h src/base/eventqueue_t.cpp
+    include/base/event_t.h src/base/event_t.cpp
+    include/base/timer_t.h src/base/timer_t.cpp
+    include/base/application_t.h src/base/application_t.cpp
 
-    webwirehandler.h webwirehandler.cpp
-    webwireprofile.h webwireprofile.cpp
-    webuiwindow.h webuiwindow.cpp
-    default_css.h default_css.cpp
-    execjs.h execjs.cpp
-    webwirestandarddialogs.h webwirestandarddialogs.cpp
-
-    mimetypes_t.h mimetypes_t.cpp
-
-    ${webui-wire_SOURCE_DIR}/deps/upa/src/url.cpp
-    httpresponse_t.h httpresponse_t.cpp
-    is_utf8.cpp is_utf8.h
-    apple_utils.h
-    webui_utils.h webui_utils.cpp
+    # Utility basic stuff
+    include/utils/misc.h src/utils/misc.cpp
+    include/utils/utf8_strings.h src/utils/utf8_strings.cpp
+    include/utils/is_utf8.h src/utils/is_utf8.c
+    include/utils/webui_utils.h src/utils/webui_utils.cpp
+    include/utils/fileinfo_t.h src/utils/fileinfo_t.cpp
+    include/utils/variant_t.h
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -162,12 +158,13 @@ endif()
 target_compile_definitions(libwebui-wire PRIVATE LIBWEBUI_WIRE_BUILDING)
 
 add_executable(webui-wire
-    main.cpp
+    src/main.cpp
 )
 
 if(APPLE)
     target_sources(libwebui-wire PRIVATE
-        apple_utils.mm
+        include/utils/apple_utils.h
+        src/utils/apple_utils.mm
     )
 endif()
 
@@ -178,7 +175,8 @@ target_link_libraries(webui-wire libwebui-wire)
 
 #link_target(libwebui-wire ${LIBPRE}webui-2-static)
 #link_target(libwebui-wire ${LIBPRE}nativefiledialog-1)
-target_link_libraries(libwebui-wire upa::url)
+#target_link_libraries(libwebui-wire upa::url)
+target_link_libraries(libwebui-wire CxxUrl)
 target_link_libraries(libwebui-wire webui)
 target_link_libraries(libwebui-wire nativefiledialog)
 

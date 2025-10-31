@@ -724,10 +724,8 @@ int WebUIWindow::showIfNotShown()
     return -1;
 }
 
-int WebUIWindow::setUrl(const upa::url &u)
+int WebUIWindow::setUrl(const std::string &s_u)
 {
-    std::string s_u = u.to_string();
-
     if (!webui_is_shown(_webui_win)) {
         return show(baseUrl());
     }

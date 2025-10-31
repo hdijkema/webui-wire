@@ -3,18 +3,12 @@
 
 #include "misc.h"
 #include "timer_t.h"
-#include "menubar_t.h"
-#include "menu_t.h"
 #include "object_t.h"
 #include "variant_t.h"
-#include "readlineinthread.h"
-#include "fileinfo_t.h"
 #include "event_t.h"
 
 #undef max
 #undef min
-#include "url.h"
-using url = upa::url;
 
 #define id_handler_log  "handler-log-event"
 #define evt_handler_log Event_t(id_handler_log, this)
@@ -34,17 +28,16 @@ public:
     int         *i;
     bool        *b;
     std::string *s;
-    url         *u;
     int          d_i;
     bool         d_b;
     std::string  d_s;
-    url          d_u;
     bool         optional;
 public:
     Var(VarType t, int &v, const char *vname, bool o = false, int d = 0) { i = &v; type = t; name = vname; optional = o;d_i = d; }
     Var(VarType t, bool &v, const char *vname, bool o = false, bool d = false) { b = &v; type = t; name = vname; optional = o;d_b = d; }
-    Var(VarType t, std::string &v, const char *vname, bool o = false, std::string d = std::string("")) { s = &v; type = t; name = vname; optional = o;d_s = d; }
-    Var(VarType t, upa::url &v, const char *vname, bool o = false, upa::url d = upa::url()) { u = &v; type = t; name = vname; optional = o;d_u = d; }
+    Var(VarType t, std::string &v, const char *vname, bool o = false, std::string d = std::string("")) {
+        s = &v; type = t; name = vname; optional = o;d_s = d;
+    }
 };
 
 class WinInfo_t
@@ -60,7 +53,6 @@ public:
     WinInfo_t();
     ~WinInfo_t();
 };
-
 
 typedef enum {
     debug_detail = 1,

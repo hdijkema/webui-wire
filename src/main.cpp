@@ -216,8 +216,20 @@ static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
 //#endif
 }
 
+#include "is_utf8.h"
+
 int main(int argc, char *argv[])
 {
+    char buf[100];
+    sprintf(buf, "%s%c%s", "Hoi! ", 0xcf, " Dus!");
+    printf("%d\n", is_utf8(buf));
+    sprintf(buf, "Hallo %c%c%c Ja", 0xe0, 0xa1, 'A');
+    printf("%d\n", is_utf8(buf));
+    sprintf(buf, "Hallo %c%c%c Ja", 0xcf, 0x00, 'A');
+    printf("%d\n", is_utf8(buf));
+    printf("%d\n", is_utf8("Hallo allemaal, ℀ dit is een ℇ tekst!"));
+    printf("%d\n", is_utf8("Hallo allemaal, 🙖 dit is een tekst!"));
+
     // dup stdout and stderr and make sure they are reopend to a temporary file
 #ifdef WIN32
     _setmode(_fileno(stdout), _O_BINARY);

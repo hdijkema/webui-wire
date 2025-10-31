@@ -1,8 +1,10 @@
 #include "webwirehandler.h"
 
 #include "webui_wire.h"
+
 #include <filesystem>
 #include <regex>
+
 #include "fileinfo_t.h"
 #include "utf8_strings.h"
 #include "application_t.h"
@@ -11,14 +13,17 @@
 #include "webuiwindow.h"
 #include "webwirestandarddialogs.h"
 #include "execjs.h"
+#include "readlineinthread.h"
+#include "webui_utils.h"
 
 namespace fs = std::filesystem;
 
 // Command handling
 
-#ifdef Q_OS_LINUX
+#ifdef __linux
 #include <unistd.h>
 #endif
+
 
 #define defun(name)         static void name(std::string cmd, WebWireHandler *h, const std::stringlist &args)
 
@@ -46,9 +51,11 @@ namespace fs = std::filesystem;
 defun(cmdSetUrl)
 {
     int win = -1;
-    url url_location;
+    std::string url_location;
 
     if (check("set-url", var(t_int, win) << var(t_url, url_location))) {
+        // After check, url_location will be checked and normalized, i.e. ready for use.
+
         checkWin;
 
         w->setUrl(url_location);
@@ -98,19 +105,26 @@ defun(cmdSetHtml)
                 r_err(asprintf("set-html:%d:file ", win) + file + " is not readable");
                 r_nok(asprintf("set-html:%d", win));
             } else {
+                WebUI_Utils utils;
 
                 std::filesystem::path the_file = std::filesystem::absolute(file);
 
                 h->message(std::string("the_file: ") + the_file.string());
 
                 std::string base_url = w->baseUrl();
-                std::string url = base_url + the_file.string();
-                upa::url u(url);
-                std::string p_url = u.to_string();
-                h->message(std::string("requesting: ") + p_url);
+                std::string url = base_url + utils.encodeUrl(the_file.string());
 
-                int handle = w->setHtml(p_url);
-                r_ok(asprintf("set-html:%d:%d", win, handle));
+                bool url_ok = utils.checkUrl(url);
+                if (url_ok) {
+                    std::string p_url = utils.normalizeUrl(url);
+                    h->message(std::string("requesting: ") + p_url);
+
+                    int handle = w->setHtml(p_url);
+                    r_ok(asprintf("set-html:%d:%d", win, handle));
+                } else {
+                    r_err(asprintf("set-html:%d:url ", win) + url + " is not valid");
+                    r_nok(asprintf("set-html:%d", win));
+                }
             }
         } else {
             r_err(asprintf("set-html:%d:file ", win) + file + " does not exist");
@@ -135,17 +149,35 @@ defun(cmdSetInnerHtml)
 
         checkWin;
 
+        bool ok = true;
+        WebUI_Utils utils;
+
         WinInfo_t *i = h->getWinInfo(win);
         if (is_file) {
             std::string base_url = w->baseUrl();
+            data = utils.encodeUrl(data);
             std::string url = base_url + data;
-            upa::url u(url);
-            std::string p_url = u.to_string();
-            i->profile->set_html(h, win, id, p_url, true);
+            if (utils.checkUrl(url)) {
+                std::string p_url = utils.normalizeUrl(url);
+                i->profile->set_html(h, win, id, p_url, true);
+            } else {
+                ok = false;
+            }
         } else {
-            i->profile->set_html(h, win, id, data, false);
+            if (utils.checkUrl(data)) {
+                std::string p_url = utils.normalizeUrl(data);
+                i->profile->set_html(h, win, id, p_url, true);
+            } else {
+                // Hopefully this is valid HTML
+                i->profile->set_html(h, win, id, data, false);
+            }
         }
-        r_ok(asprintf("set-inner-html:%d:", win));
+
+        if (ok) {
+            r_ok(asprintf("set-inner-html:%d:", win));
+        } else {
+            r_nok(asprintf("set-inner-html:%d:", win));
+        }
     }
 }
 
@@ -745,7 +777,6 @@ defun(cmdCwd)
 
 defun(cmdProtocol)
 {
-    json j;
     r_ok(asprintf("protocol:0:%d", WEB_WIRE_PROTOCOL_VERSION));
 }
 
@@ -1063,6 +1094,8 @@ void WebWireHandler::inputStopped(const Event_t &e)
 
 bool WebWireHandler::getArgs(std::string cmd, int win, wwlist<Var> types, std::stringlist args)
 {
+    WebUI_Utils utils;
+
     auto get_min_arg_count = [types]() {
         wwlist<Var>::const_iterator it;
         int i;
@@ -1123,13 +1156,14 @@ bool WebWireHandler::getArgs(std::string cmd, int win, wwlist<Var> types, std::s
         } else if (t == t_string) {
             *((*it).s) = (i < N) ? *a_it : (*it).d_s;
         } else if (t == t_url) {
-            url u = (i < N) ? url(*a_it) : (*it).d_u;
-            if (!u.is_valid()) {
-                mkerr((*it).name + ": url expected, got " + *a_it);
+            std::string maybe_u = (i < N) ? *a_it : (*it).d_s;
+            bool url_ok = utils.checkUrl(maybe_u);
+            if (!url_ok) {
+                mkerr((*it).name + ": url expected, got " + maybe_u);
                 addNOk(cmd + asprintf(":%d", win));
                 return false;
             }
-            *((*it).u) = u;
+            *((*it).s) = utils.normalizeUrl(maybe_u);
         } else if (t == t_json_string) {
             std::string s = (i < N) ? *a_it : (*it).d_s;
             json j;

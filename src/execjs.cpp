@@ -4,25 +4,33 @@
 #include "webwirehandler.h"
 #include "misc.h"
 #include "webui_utils.h"
+#include "json.h"
 
 #ifdef __APPLE__
 #include "apple_utils.h"
 #endif
+
+using namespace json;
 
 static std::string makeResult(WebWireHandler *h, const Variant_t &v)
 {
     std::string in = v.toString();
 
     h->message(std::string("makeResult:") + in);
-    json obj;
+    JSON obj;
 
     if (in.rfind("json:", 0) == 0) {
-        json j;
-        try {
-            j = json::parse(in.substr(5));
+        JSON j;
+        bool ok = true;
+        auto on_error = [&ok, h, in](const std::string &msg) {
+            h->error(std::string("exec-js, makeResult from '") + in + "', parse error:" + msg);
+            ok = false;
+        };
+
+        j = JSON::Load(in.substr(5), on_error);
+        if (ok) {
             obj["result"] = j;
-        } catch(json::parse_error e) {
-            h->error(std::string("exec-js, makeResult from '") + in + "', parse error:" + e.what());
+        } else {
             obj["result"] = false;
         }
 

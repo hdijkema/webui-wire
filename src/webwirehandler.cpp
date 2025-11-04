@@ -984,10 +984,10 @@ std::stringlist WebWireHandler::splitArgs(std::string l)
     };
 \
     bool prev_escape = false;
-    for(i = 0, N = l.length(); i < N; ) {
-        if (std::isspace(l[i]) && !in_str) {
+    for(i = 0, N = l.size(); i < N; ) {
+        if (is_space(l[i]) && !in_str) {
             append(l.substr(from, i - from));
-            while (i < N && std::isspace(l[i])) { i++; }
+            while (i < N && is_space(l[i])) { i++; }
             from = i;
         } else if (l[i] == '\"') {
             if (in_str) {
@@ -995,7 +995,7 @@ std::stringlist WebWireHandler::splitArgs(std::string l)
                     std::string s = replace(l.substr(from, i - from), "\\\"", "\"");
                     append(s);
                     i += 1;
-                    while (i < N && std::isspace(l[i])) { i++; }
+                    while (i < N && is_space(l[i])) { i++; }
                     from = i;
                     in_str = false;
                 } else {

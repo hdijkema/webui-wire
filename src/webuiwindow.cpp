@@ -10,11 +10,13 @@
 #include "webui_utils.h"
 #include <regex>
 #include <string.h>
+#include "json.h"
 
 #ifdef __APPLE__
 #include "apple_utils.h"
 #endif
 
+using namespace json;
 
 #define WEBWIREHANDLER ((Application_t::current() == nullptr) ? nullptr : (Application_t::current()->handler()))
 
@@ -118,7 +120,7 @@ static bool isHTML(const char *_buf, int max_search)
     bool h = false;
     int i = 0;
     const unsigned char *buf = reinterpret_cast<const unsigned char*>(_buf);
-    while (buf[i] != '\0' && isspace(buf[i]) && i < max_search) {
+    while (buf[i] != '\0' && is_space(buf[i]) && i < max_search) {
         i++;
     }
 
@@ -127,11 +129,11 @@ static bool isHTML(const char *_buf, int max_search)
 
     if (strnicmp(&_buf[i], "<!", 2) == 0) {
         i += 2;
-        while (buf[i] != '\0' && isspace(buf[i]) && i < max_search) { i++; }
+        while (buf[i] != '\0' && is_space(buf[i]) && i < max_search) { i++; }
         if (buf[i] == '\0' || i >= max_search) return false;
         if (strnicmp(&_buf[i], "DOCTYPE", 7) == 0) {
             i += 7;
-            while (buf[i] != '\0' && isspace(buf[i]) && i < max_search) { i++; }
+            while (buf[i] != '\0' && is_space(buf[i]) && i < max_search) { i++; }
             if (buf[i] == '\0' || i >= max_search) return false;
             if (strnicmp(&_buf[i], "html", 4) == 0) return true;
         }
@@ -471,7 +473,7 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
             kind = "set-html";
             r_u = r_u.substr(baseUrl().length());
         }
-        json j;
+        JSON j;
         j["url"] = r_u;
         j["navigation-type"] = "standard";
         j["navigation-kind"] = kind;

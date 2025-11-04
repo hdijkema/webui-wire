@@ -140,10 +140,12 @@ add_library(libwebui-wire STATIC
     # Utility basic stuff
     include/utils/misc.h src/utils/misc.cpp
     include/utils/utf8_strings.h src/utils/utf8_strings.cpp
-    include/utils/is_utf8.h src/utils/is_utf8.c
+    include/utils/utf8_utils.h src/utils/utf8_utils.c
     include/utils/webui_utils.h src/utils/webui_utils.cpp
     include/utils/fileinfo_t.h src/utils/fileinfo_t.cpp
     include/utils/variant_t.h
+    src/utils/utf8_utils.cpp
+    include/utils/json.h
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

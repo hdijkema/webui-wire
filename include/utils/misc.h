@@ -4,8 +4,9 @@
 #include <string>
 #include <list>
 #include <thread>
-#include "json.hpp"
-#include "utf8_strings.h"
+#include <unordered_map>
+
+#include "utf8_utils.h"
 #include "webui_wire_defs.h"
 
 // Trim from the start (in place)
@@ -45,9 +46,6 @@ inline std::string trim_copy(std::string s) {
     trim(s);
     return s;
 }
-
-// for convenience
-using json = nlohmann::json;
 
 class Size_t
 {
@@ -92,13 +90,13 @@ public:
 template <typename T> class wwlist : public std::list<T>
 {
 public:
-    wwlist<T> &operator <<(const T &item) {
+    inline wwlist<T> &operator <<(const T &item) {
         this->push_back(item);
         return *this;
     }
 
-    wwlist<T> append(const T &item) {
-        this->push_back(item);
+    inline wwlist<T> append(const T &item) {
+        this->emplace_back(item);
         return *this;
     }
 
@@ -111,7 +109,7 @@ class stringlist;
 class std::stringlist : public wwlist<std::string>
 {
 public:
-    std::string join(std::string sep) {
+    inline std::string join(std::string sep) {
         std::stringlist::iterator it = this->begin();
         std::string r;
         if (it != this->end()) {

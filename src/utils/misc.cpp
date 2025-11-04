@@ -8,17 +8,29 @@
 
 std::string asprintf(const char *fmt_str, ...)
 {
-    char *buffer = static_cast<char *>(malloc(102400));
+    char buf[1024];
+    char *buffer = static_cast<char *>(buf);
+    static_cast<char *>(malloc(102400));
     va_list args;
     va_start (args, fmt_str);
 #ifdef __APPLE__
-    vsnprintf(buffer, 102400, fmt_str, args);
+    int length = vsnprintf(buffer, 1024, fmt_str, args);
 #else
-    vsprintf_s(buffer, 102400, fmt_str, args);
+    int length = vsprintf_s(buffer, 1024, fmt_str, args);
 #endif
     va_end(args);
+    if (length > 1024) {
+        buffer = static_cast<char *>(malloc(length + 1));
+        va_start(args, fmt_str);
+#ifdef __APPLE__
+        int length = vsnprintf(buffer, 1024, fmt_str, args);
+#else
+        int length = vsprintf_s(buffer, 1024, fmt_str, args);
+#endif
+        va_end(args);
+    }
     std::string s(buffer);
-    free(buffer);
+    if (buffer != buf) free(buffer);
     return s;
 }
 

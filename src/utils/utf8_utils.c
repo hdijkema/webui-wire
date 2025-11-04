@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "is_utf8.h"
+#include "utf8_utils.h"
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Great algorithm to determine if we have valid UTF-8 (maybe not valid Unicode)
@@ -60,7 +60,7 @@ static inline uint32_t decode(const char *utf8_str, int *counted, register int s
 }
 
 
-int is_utf8_c(const char *s)
+int valid_utf8_c(const char *s)
 {
   int c = 0;
   if (decode(s, &c, TRUE) == UTF8_ACCEPT) {
@@ -69,3 +69,5 @@ int is_utf8_c(const char *s)
     return FALSE;
   }
 }
+
+

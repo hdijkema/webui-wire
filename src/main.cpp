@@ -20,6 +20,27 @@
 #define id_evt  "event"
 #define evt_event Event_t(id_evt, nullptr)
 
+#ifdef WIN32
+#include <Windows.h>
+
+class UTF8CodePage {
+public:
+    UTF8CodePage() : m_old_code_page(::GetConsoleOutputCP()),
+        m_old_code_page_input(::GetConsoleCP())    {
+        ::SetConsoleOutputCP(CP_UTF8);
+        ::SetConsoleCP(CP_UTF8);
+    }
+    ~UTF8CodePage() {
+        ::SetConsoleOutputCP(m_old_code_page);
+        ::SetConsoleCP(m_old_code_page_input);
+    }
+
+private:
+    UINT m_old_code_page;
+    UINT m_old_code_page_input;
+};
+#endif
+
 static bool fReopenOutputStreamToTempFile(FILE *stream, std::string &filename)
 {
 #ifdef WIN32
@@ -99,6 +120,7 @@ static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
     int buf_size = 1024;
     char *out_buf = static_cast<char *>(malloc(buf_size + 1));
 
+    UTF8CodePage use_utf8;
     WebUI_Utils webui_utils;
 
     auto check_buf_size = [&buf_size, &out_buf](int len) {
@@ -216,19 +238,19 @@ static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
 //#endif
 }
 
-#include "is_utf8.h"
+#include "utf8_utils.h"
 
 int main(int argc, char *argv[])
 {
     char buf[100];
     sprintf(buf, "%s%c%s", "Hoi! ", 0xcf, " Dus!");
-    printf("%d\n", is_utf8(buf));
+    printf("%d\n", valid_utf8(buf));
     sprintf(buf, "Hallo %c%c%c Ja", 0xe0, 0xa1, 'A');
-    printf("%d\n", is_utf8(buf));
+    printf("%d\n", valid_utf8(buf));
     sprintf(buf, "Hallo %c%c%c Ja", 0xcf, 0x00, 'A');
-    printf("%d\n", is_utf8(buf));
-    printf("%d\n", is_utf8("Hallo allemaal, ℀ dit is een ℇ tekst!"));
-    printf("%d\n", is_utf8("Hallo allemaal, 🙖 dit is een tekst!"));
+    printf("%d\n", valid_utf8(buf));
+    printf("%d\n", valid_utf8("Hallo allemaal, ℀ dit is een ℇ tekst!"));
+    printf("%d\n", valid_utf8("Hallo allemaal, 🙖 dit is een tekst!"));
 
     // dup stdout and stderr and make sure they are reopend to a temporary file
 #ifdef WIN32

@@ -10,8 +10,6 @@
 #include "apple_utils.h"
 #endif
 
-using namespace json;
-
 static std::string makeResult(WebWireHandler *h, const Variant_t &v)
 {
     std::string in = v.toString();

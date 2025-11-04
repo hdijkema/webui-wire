@@ -10,7 +10,7 @@ std::string asprintf(const char *fmt_str, ...)
 {
     char buf[1024];
     char *buffer = static_cast<char *>(buf);
-    static_cast<char *>(malloc(102400));
+
     va_list args;
     va_start (args, fmt_str);
 #ifdef __APPLE__
@@ -23,14 +23,16 @@ std::string asprintf(const char *fmt_str, ...)
         buffer = static_cast<char *>(malloc(length + 1));
         va_start(args, fmt_str);
 #ifdef __APPLE__
-        int length = vsnprintf(buffer, 1024, fmt_str, args);
+        vsnprintf(buffer, length + 1, fmt_str, args);
 #else
-        int length = vsprintf_s(buffer, 1024, fmt_str, args);
+        vsprintf_s(buffer, length + 1, fmt_str, args);
 #endif
         va_end(args);
     }
+
     std::string s(buffer);
     if (buffer != buf) free(buffer);
+
     return s;
 }
 

@@ -23,16 +23,13 @@ static void initGUI()
 void WebUI_Utils::processCurrentEvents()
 {
 #ifdef __linux
-    else {  // Idle processing, process Gtk events.
-        while (gtk_events_pending()) {
-            gtk_main_iteration_do(0);
-        }
+    // Idle processing, process Gtk events.
+    while (gtk_events_pending()) {
+        gtk_main_iteration_do(0);
     }
 #endif
 #ifdef __APPLE__
-    else {
-        process_events_apple();
-    }
+    process_events_apple();
 #endif
 }
 
@@ -85,7 +82,7 @@ WebUI_Utils::WebUI_Utils()
 ///////////////////////////////////////////////////////////////////////////////////////
 // Url Utils
 ///////////////////////////////////////////////////////////////////////////////////////
-#include "deps/cxxurl/url.hpp"
+#include "deps/CxxUrl/url.hpp"
 
 bool WebUI_Utils::checkUrl(const std::string &maybe_url)
 {

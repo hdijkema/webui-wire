@@ -5,6 +5,7 @@
 #include <list>
 #include <thread>
 #include <unordered_map>
+#include <algorithm>
 
 #include "utf8_utils.h"
 #include "webui_wire_defs.h"

@@ -94,21 +94,9 @@ static void webui_wire_logger(size_t _level, const char *m, void *user_data)
     webui_logger_level level = static_cast<webui_logger_level>(_level);
     _webwire_handle *h = static_cast<_webwire_handle *>(user_data);
 
-    if (_webwire_valid_handle(h, __FUNCTION__, __LINE__, true) == webwire_valid) {
-        WebWireHandler *handler = h->handler;
-
+    auto make_msg = [m]() {
         std::string msg;
         if (!valid_utf8(m)) {
-            /*int l = strlen(m);
-            char *buf = strdup(m);
-            while(l > 0 && !is_utf8(buf, l)) {
-                l -= 1;
-                buf[l] = '\0';
-            }
-            msg = buf;
-            msg += " (from invalid UTF-8)";
-            free(buf);
-            */
             int i;
             const char *comma = "";
             for(i = 0; i < strlen(m); i++) {
@@ -120,6 +108,13 @@ static void webui_wire_logger(size_t _level, const char *m, void *user_data)
             msg = m;
         }
         trim(msg);
+        return msg;
+    };
+
+    if (_webwire_valid_handle(h, __FUNCTION__, __LINE__, true) == webwire_valid) {
+        WebWireHandler *handler = h->handler;
+
+        std::string msg = make_msg();
 
         switch(level) {
         //case log_debug_detail: handler->debugDetail("webui-detail:" + msg);
@@ -137,6 +132,10 @@ static void webui_wire_logger(size_t _level, const char *m, void *user_data)
         case WEBUI_LOGGER_LEVEL_ERROR:   handler->error("webui-error:" + msg);
             break;
         }
+    } else {
+        std::string msg = make_msg();
+        fprintf(stderr, "%s\n", msg.c_str());
+        fflush(stderr);
     }
 }
 

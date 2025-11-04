@@ -7,6 +7,8 @@
 #include "variant_t.h"
 #include "event_t.h"
 
+#include <filesystem>
+
 #undef max
 #undef min
 

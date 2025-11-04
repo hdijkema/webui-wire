@@ -146,6 +146,7 @@ add_library(libwebui-wire STATIC
     include/utils/variant_t.h
     src/utils/utf8_utils.cpp
     include/utils/json.h
+    src/utils/json.cpp
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -172,12 +173,6 @@ endif()
 
 target_link_libraries(webui-wire libwebui-wire)
 
-#add_dependencies(webui-wire ${LIBPRE}webui-2-static-${LIBKIND} ${LIBPRE}nativefiledialog-1-${LIBKIND})
-#add_dependencies(webui-wire ${LIBPRE}nativefiledialog-1-${LIBKIND})
-
-#link_target(libwebui-wire ${LIBPRE}webui-2-static)
-#link_target(libwebui-wire ${LIBPRE}nativefiledialog-1)
-#target_link_libraries(libwebui-wire upa::url)
 target_link_libraries(libwebui-wire CxxUrl)
 target_link_libraries(libwebui-wire webui)
 target_link_libraries(libwebui-wire nativefiledialog)
@@ -185,8 +180,6 @@ target_link_libraries(libwebui-wire nativefiledialog)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(webui-wire ${GTK_LIBRARIES})
 endif()
-
-#add_dependencies(webui-wire libwebui-wire)
 
 include(GNUInstallDirs)
 install(TARGETS webui-wire

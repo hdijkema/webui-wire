@@ -5,13 +5,21 @@
 #include "event_t.h"
 #include "webui_utils.h"
 
+#ifndef __linux
 #include <io.h>
+#endif
+
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #ifdef __APPLE__
 #include "apple_utils.h"
+#endif
+
+#ifdef __linux
+#include <gtk-3.0/gtk/gtk.h>
+#define _unlink unlink
 #endif
 
 #define id_log  "log-message"
@@ -120,7 +128,9 @@ static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
     int buf_size = 1024;
     char *out_buf = static_cast<char *>(malloc(buf_size + 1));
 
+#ifdef WIN32
     UTF8CodePage use_utf8;
+#endif
     WebUI_Utils webui_utils;
 
     auto check_buf_size = [&buf_size, &out_buf](int len) {
@@ -240,6 +250,15 @@ static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
 
 #include "utf8_utils.h"
 
+webwire_handle wire_handle = nullptr;
+
+void deleteWireHandleAtExit()
+{
+    if (wire_handle != nullptr) {
+        webwire_destroy(wire_handle);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     char buf[100];
@@ -321,6 +340,9 @@ int main(int argc, char *argv[])
 #endif
 
     webwire_handle handle = webwire_new();
+    wire_handle = handle;
+    atexit(deleteWireHandleAtExit);
+
     enum_handle_status s = webwire_status(handle);
     if (s != webwire_valid) {
         fprintf(stderr, "Cannot start WebWire CLI, status = %s\n", webwire_status_string(s));
@@ -368,7 +390,6 @@ int main(int argc, char *argv[])
 //#endif
 
     msg_thread.join();
-    webwire_destroy(handle);
     delete reader;
 
     if (stderr_ok) {
@@ -380,6 +401,8 @@ int main(int argc, char *argv[])
         fclose(stdout);
         _unlink(stdout_file.c_str());
     }
+
+    // handle will be destroyed atexit.
 
     return 0;
 }

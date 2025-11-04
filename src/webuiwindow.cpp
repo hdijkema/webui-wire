@@ -16,8 +16,6 @@
 #include "apple_utils.h"
 #endif
 
-using namespace json;
-
 #define WEBWIREHANDLER ((Application_t::current() == nullptr) ? nullptr : (Application_t::current()->handler()))
 
 static wwhash<size_t, WebUIWindow *> _windows;
@@ -489,21 +487,36 @@ void WebUIWindow::handleWireEvent(webui_event_t *e)
 {
     std::string event = webui_get_string(e);
     _handler->message(event);
-    json j = json::parse(event);
-    std::string evt = j["evt"];
-    if (evt == "script-result") {
-        if (_exec_js != nullptr) {
-            // always expect string result here
-            _exec_js->setResult(j["result"], j["result_ok"], j["result_msg"]);
-            _exec_js = nullptr;
+
+
+    bool ok = true;;
+    std::string errmsg;
+    auto on_error = [&ok, &errmsg, this](const std::string &msg) {
+        ok = false;
+        _handler->error(msg);
+        errmsg = msg;
+    };
+
+    JSON j = JSON::Load(event, on_error);
+
+    if (ok) {
+        std::string evt = j["evt"].toString();
+        if (evt == "script-result") {
+            if (_exec_js != nullptr) {
+                // always expect string result here
+                _exec_js->setResult(j["result"].toString(), j["result_ok"].toBool(), j["result_msg"].toString());
+                _exec_js = nullptr;
+            } else {
+                _handler->error(asprintf("handleWireEvent: Unexpected script-result: %s", event.c_str()));
+            }
+        } else if (evt == "page-loaded") {
+            _page_loaded = true;
+            _handler->evt(evt + ":" + asprintf("%d", _win) + ":" + event);
         } else {
-            _handler->error(asprintf("handleWireEvent: Unexpected script-result: %s", event.c_str()));
+            _handler->evt(evt + ":" + asprintf("%d", _win) + ":" + event);
         }
-    } else if (evt == "page-loaded") {
-        _page_loaded = true;
-        _handler->evt(evt + ":" + asprintf("%d", _win) + ":" + event);
     } else {
-        _handler->evt(evt + ":" + asprintf("%d", _win) + ":" + event);
+        _handler->error("Expected valid JSON, error: '" + errmsg + "'");
     }
 }
 

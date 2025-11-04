@@ -6,7 +6,6 @@
 #include <regex>
 
 #include "fileinfo_t.h"
-#include "utf8_strings.h"
 #include "application_t.h"
 #include "default_css.h"
 #include "webwireprofile.h"
@@ -15,6 +14,7 @@
 #include "execjs.h"
 #include "readlineinthread.h"
 #include "webui_utils.h"
+#include "json.h"
 
 namespace fs = std::filesystem;
 
@@ -817,13 +817,20 @@ defun(cmdSetStylesheet)
     std::string json_css;
     int win = 0;
     if (check("set-stylesheet", var(t_string, json_css))) {
-        try {
-            json j = json::parse(json_css);
-            std::string css = j["css"];
-            h->setStylesheet(css);
+        bool ok = true;
+        auto on_error = [&ok, h](const std::string &msg) {
+            h->error(msg);
+            ok = false;
+        };
+
+        JSON j = JSON::Load(json_css, on_error);
+        std::string css = j["css"].toString(ok);
+        h->setStylesheet(css);
+
+        if (ok) {
             r_ok(std::string("set-stylesheet:0:done"));
-        } catch(json::parse_error e) {
-            r_nok(std::string("set-stylesheet:0:error") + e.what());
+        } else {
+            r_nok(std::string("set-stylesheet:0:error"));
         }
     }
 }
@@ -831,7 +838,7 @@ defun(cmdSetStylesheet)
 defun(cmdGetStyleheet)
 {
     std::string css = h->getStylesheet();
-    json j;
+    JSON j;
     j["css"] = css;
     std::string js = j.dump();
     r_ok(std::string("get-stylesheet:0:") + js);
@@ -1166,14 +1173,24 @@ bool WebWireHandler::getArgs(std::string cmd, int win, wwlist<Var> types, std::s
             *((*it).s) = utils.normalizeUrl(maybe_u);
         } else if (t == t_json_string) {
             std::string s = (i < N) ? *a_it : (*it).d_s;
-            json j;
-            try {
-                j = json::parse(s);
-            } catch(const json::parse_error &e) {
-                mkerr((*it).name + ": Json Parse Error '" + e.what() + "'");
+            JSON j;
+
+            bool ok = true;
+            std::string errmsg;
+            auto on_error = [&errmsg, &ok, this](const std::string &msg) {
+                ok = false;
+                this->error(msg);
+                errmsg = msg;
+            };
+
+            j = JSON::Load(s, on_error);
+
+            if (!ok) {
+                mkerr((*it).name + ": Json Parse Error '" + errmsg  + "'");
                 addNOk(cmd + asprintf(":%d", win));
                 return false;
             }
+
             *((*it).s) = s;
         } else if (t == t_bool) {
             bool ok = true;
@@ -1447,7 +1464,7 @@ void WebWireHandler::windowResized(int win, int w, int h)
     // "cleaned", i.e. will trigger not often
     WinInfo_t *i = _infos[win];
     i->size = Size_t(w,h);
-    json j;
+    JSON j;
     j["width"] = i->size.width();
     j["height"] = i->size.height();
     evt(asprintf("resized:%d:%s", win, j.dump().c_str()));
@@ -1457,7 +1474,7 @@ void WebWireHandler::windowMoved(int win, int x, int y)
 {
     WinInfo_t *i = _infos[win];
     i->pos = Point_t(x, y);
-    json j;
+    JSON j;
     j["x"] = i->pos.x();
     j["y"] = i->pos.y();
     evt(asprintf("moved:%d:%s", win, j.dump().c_str()));

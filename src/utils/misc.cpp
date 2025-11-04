@@ -16,7 +16,7 @@ std::string asprintf(const char *fmt_str, ...)
 #ifdef __APPLE__
     int length = vsnprintf(buffer, 1024, fmt_str, args);
 #else
-    int length = vsprintf_s(buffer, 1024, fmt_str, args);
+    int length = vsnprintf(buffer, 1024, fmt_str, args);
 #endif
     va_end(args);
     if (length > 1024) {

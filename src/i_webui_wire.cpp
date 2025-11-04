@@ -133,9 +133,7 @@ static void webui_wire_logger(size_t _level, const char *m, void *user_data)
             break;
         }
     } else {
-        std::string msg = make_msg();
-        fprintf(stderr, "%s\n", msg.c_str());
-        fflush(stderr);
+        // Skip this message. - On windows this can lead to problems.
     }
 }
 

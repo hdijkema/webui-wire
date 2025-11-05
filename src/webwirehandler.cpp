@@ -108,11 +108,12 @@ defun(cmdSetHtml)
                 WebUI_Utils utils;
 
                 std::filesystem::path the_file = std::filesystem::absolute(file);
+                std::string full_file = replace(the_file.string(), "\\", "/");
 
-                h->message(std::string("the_file: ") + the_file.string());
+                h->message(std::string("full_file: ") + full_file);
 
                 std::string base_url = w->baseUrl();
-                std::string url = base_url + utils.encodeUrl(the_file.string());
+                std::string url = base_url + utils.encodeUrl(full_file);
 
                 bool url_ok = utils.checkUrl(url);
                 if (url_ok) {

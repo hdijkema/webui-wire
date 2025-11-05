@@ -25,7 +25,8 @@ static std::string makeResult(WebWireHandler *h, const Variant_t &v)
             ok = false;
         };
 
-        j = JSON::Load(in.substr(5), on_error);
+        std::string payload = replace(in.substr(5), "\\\"", "\"");
+        j = JSON::Load(payload, on_error);
         if (ok) {
             obj["result"] = j;
         } else {

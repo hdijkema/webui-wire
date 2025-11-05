@@ -447,8 +447,8 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
             Timer_t *t = _handler->getTimer(_win);
             if (t != nullptr) {
                 t->setSingleShot(true);
-                t->setTimeout(500);            // Check if still disconnected after 1.5seconds
-                //t->start();
+                t->setTimeout(1500);            // Check if still disconnected after 1.5seconds
+                t->start();
             }
         }
         return;

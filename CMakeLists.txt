@@ -87,13 +87,11 @@ endfunction()
 
 git_dep(webui https://github.com/hdijkema/webui.git)
 git_dep(CxxUrl https://github.com/chmike/CxxUrl.git)
-git_dep(json https://github.com/nlohmann/json.git)
 git_dep(nativefiledialog https://github.com/hdijkema/nativefiledialog.git)
 
 include_directories(. include include/base include/utils)
 include_directories(deps/webui/include)
 include_directories(deps/nativefiledialog/src/include)
-include_directories(deps/json/include deps/json/include/nlohmann)
 include_directories(deps/cxxurl)
 
 if(TARGET clean)

@@ -31,12 +31,6 @@ jobs:
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
-          - os: ubuntu-22.04
-            c_compiler: gcc
-            cpp_compiler: g++
-          - os: ubuntu-22.04-arm
-            c_compiler: gcc
-            cpp_compiler: g++
           - os: ubuntu-24.04-arm
             c_compiler: gcc
             cpp_compiler: g++
@@ -85,6 +79,6 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file:  ./build/webui-wire
-        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-${{ steps.machine-model.outputs.distro }}-${{ steps.machine-model.outputs.release }}-${{ steps.machine-model.outputs.model }}
+        asset_name: webui-wire-${{ github.event.release.tag_name }}-linux-${{ steps.machine-model.outputs.model }}
         overwrite: true
 

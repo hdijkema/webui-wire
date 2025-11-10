@@ -168,7 +168,7 @@ JSON::JSONConstWrapper<std::deque<JSON> > JSON::ArrayRange() const {
     return JSONConstWrapper<std::deque<JSON>>( nullptr );
 }
 
-string JSON::dump(int depth, std::string tab) const {
+string JSON::dump(int depth, const std::string &tab) const {
     std::string pad = "";
     for( int i = 0; i < depth; ++i, pad += tab );
 
@@ -176,14 +176,14 @@ string JSON::dump(int depth, std::string tab) const {
     case Class::Null:
         return "null";
     case Class::Object: {
-        std::string s = "{\n";
+        std::string s = "{ ";
         bool skip = true;
         for( auto &p : *Internal.Map ) {
-            if( !skip ) s += ",\n";
+            if( !skip ) s += ", ";
             s += ( pad + "\"" + p.first + "\" : " + p.second.dump( depth + 1, tab ) );
             skip = false;
         }
-        s += ( "\n" + pad.erase( 0, 2 ) + "}" ) ;
+        s += ( " " + pad.erase( 0, 2 ) + "}" ) ;
         return s;
     }
     case Class::Array: {
@@ -244,6 +244,9 @@ JSON &JSON::operator[](const std::string &key) {
 }
 
 JSON &JSON::operator=(const JSON &other) {
+
+    if (&other == this) { return *this; }
+
     ClearInternal();
     switch( other.Type ) {
     case Class::Object:

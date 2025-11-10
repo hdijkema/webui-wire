@@ -28,7 +28,7 @@ icons:
 	convert -background none -density 1000 -resize 32x nl.dijkewijk.webui-wire.svg nl.dijkewijk.webui-wire-32.png
 
 
-json: ../webui_wire.h nl.dijkewijk.webui-wire.json.in v.c
+json: ../include/webui_wire.h nl.dijkewijk.webui-wire.json.in v.c
 	gcc -o v v.c
 	TAG=`./v`;sed -e s/@@RELEASE@@/$$TAG/ <nl.dijkewijk.webui-wire.json.in >nl.dijkewijk.webui-wire.json
 	

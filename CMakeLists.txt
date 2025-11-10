@@ -187,5 +187,5 @@ install(TARGETS webui-wire
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-install(FILES webui-wire.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons)
+install(FILES flatpak/nl.dijkewijk.webui-wire.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons)
 

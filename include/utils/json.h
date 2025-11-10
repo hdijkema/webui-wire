@@ -181,7 +181,7 @@ public:
     JSONConstWrapper<std::map<std::string,JSON>> ObjectRange() const;
     JSONConstWrapper<std::deque<JSON>> ArrayRange() const;
 
-    std::string dump( int depth = 1, std::string tab = "  ") const;
+    std::string dump( int depth = 1, const std::string &tab = std::string(" ")) const;
 
     friend std::ostream& operator<<( std::ostream&, const JSON & );
 

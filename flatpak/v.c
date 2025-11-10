@@ -2,7 +2,7 @@
 
 typedef int bool;
 
-#include "../webui_wire.h"
+#include "../include/webui_wire.h"
 
 int main()
 {

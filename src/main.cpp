@@ -67,6 +67,17 @@ static bool fReopenOutputStreamToTempFile(FILE *stream, std::string &filename)
         }
     }
 #else
+    char template_name[10240];
+    strcpy(template_name, "/tmp/webui_wire_XXXXXX");
+    int fd = mkstemp(template_name);
+    close(fd);
+    FILE *f = freopen(template_name, "wt", stream);
+    if (f == NULL) {
+        return false;
+    } else {
+        filename = template_name;
+        return true;
+    }
     return false;
 #endif
 }
@@ -296,14 +307,16 @@ int main(int argc, char *argv[])
         std::string msg = std::string("stderr reopened for internal use to ") + stderr_file;
         log("init", msg.c_str());
     } else {
-        log("init", "Cannot reopen stderr for internal use");
+        std::string msg = std::string("Cannot reopen stderr for internal use to ") + stderr_file;
+        log("init", msg.c_str());
     }
 
     if (stdout_ok) {
         std::string msg = std::string("stdout reopened for internal use to ") + stdout_file;
         log("init", msg.c_str());
     } else {
-        log("init", "Cannot reopen stdout for internal use");
+        std::string msg = std::string("Cannot reopen stdout for internal use to ") + stdout_file;
+        log("init", msg.c_str());
     }
 
 

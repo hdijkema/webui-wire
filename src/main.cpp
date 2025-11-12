@@ -4,6 +4,7 @@
 #include "misc.h"
 #include "event_t.h"
 #include "webui_utils.h"
+#include "webui_wire.h"
 
 #ifndef __linux
 #include <io.h>
@@ -272,6 +273,19 @@ void deleteWireHandleAtExit()
 
 int main(int argc, char *argv[])
 {
+    if (argc > 1 && strcmp(argv[1], "--version") == 0) {
+        printf("%s\n", WEB_WIRE_VERSION);
+        exit(0);
+    } else if (argc > 1) {
+        fprintf(stderr, "Unknown option%s:", (argc == 2) ? "" : "s");
+        int i;
+        for(i = 1; i < argc; i++) {
+            fprintf(stderr, " %s", argv[i]);
+        }
+        fprintf(stderr, "\n");
+        exit(1);
+    }
+
 
     // dup stdout and stderr and make sure they are reopend to a temporary file
 #ifdef WIN32

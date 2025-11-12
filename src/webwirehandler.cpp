@@ -107,13 +107,17 @@ defun(cmdSetHtml)
             } else {
                 WebUI_Utils utils;
 
-                std::filesystem::path the_file = std::filesystem::absolute(file);
-                std::string full_file = replace(the_file.string(), "\\", "/");
+                //std::filesystem::path the_file = std::filesystem::absolute(file);
+                //std::string full_file = replace(the_file.string(), "\\", "/");
+                std::string full_file = replace(file, "\\", "/");
 
                 h->message(std::string("full_file: ") + full_file);
 
                 std::string base_url = w->baseUrl();
+                h->message(std::string("got base_url: ") + base_url);
+
                 std::string url = base_url + utils.encodeUrl(full_file);
+                h->message(std::string("url: " + url));
 
                 bool url_ok = utils.checkUrl(url);
                 if (url_ok) {

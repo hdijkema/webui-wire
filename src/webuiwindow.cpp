@@ -65,16 +65,6 @@ static bool web_ui_wire_on_close(size_t window)
     }
 }
 
-static bool web_ui_wire_on_navigation(size_t window)
-{
-    WebUIWindow *win = get_webui_window(window);
-    if (win != nullptr) {
-        return win->mayNavigate();
-    } else { // No window found, close always permitted
-        return true;
-    }
-}
-
 static const void *web_ui_wire_files_handler(size_t window, const char *filename, int* length)
 {
     //fprintf(stderr, "%s\n", filename);
@@ -150,11 +140,6 @@ int WebUIWindow::newHandle()
 
 std::string WebUIWindow::baseUrl()
 {
-    //return asprintf("http://127.0.0.1:%d/", webui_get_port(_webui_win));
-    //return asprintf("http://127.0.0.1:%d/", _handler->port());
-    //return _handler->serverUrl() + _profile + "/";
-    //return _handler->serverUrl() + asprintf("%d/", _win);
-    //return asprintf("http://127.0.0.1:%d/%d/", webui_get_port(_webui_win), _win);
     int port = webui_get_port(_win);
     _handler->message(asprintf("port = %d", port));
     std::string url = asprintf("%s", webui_get_url(_win));
@@ -307,6 +292,7 @@ const void *WebUIWindow::filesHandler(const char *url_path, int *length)
 {
     _served++;
     _handler->message(asprintf("Serving url path (%d): ", _served) + url_path);
+
     std::regex re("[/](.*)");
     std::smatch m;
     std::string file_path = url_path;
@@ -344,6 +330,8 @@ const void *WebUIWindow::filesHandler(const char *url_path, int *length)
         }
     }
 
+    _handler->message(std::string("file = '" + file + "'"));
+
     if (root_url || empty_url) {
         std::string standard_msg = standardMessage();
         HttpResponse_t resp(_handler, 200);
@@ -352,6 +340,11 @@ const void *WebUIWindow::filesHandler(const char *url_path, int *length)
         return resp.response(*length);
     } else {
         FileInfo_t fi(file);
+        if (!fi.exists()) {
+            std::string d = std::filesystem::current_path().string();
+            file = d + file;
+            fi = FileInfo_t(file);
+        }
         HttpResponse_t resp(_handler);
         if (fi.exists() && fi.isReadable()) {
             size_t file_size = fi.size();
@@ -465,7 +458,7 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
          _handler->message(asprintf("Window %d (%d) navigation - clientid = %d, url %s",
                                    _win, _webui_win, e->client_id,
                                    url));
-        std::string r_u = url; //replace(url, "\"", "\\\"");
+        std::string r_u = url;
         std::string kind = "set-url";
         if (r_u.rfind(baseUrl(), 0) == 0) {
             kind = "set-html";

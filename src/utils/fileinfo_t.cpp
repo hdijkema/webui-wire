@@ -62,6 +62,14 @@ std::filesystem::path FileInfo_t::toPath()
     return _p;
 }
 
+FileInfo_t &FileInfo_t::operator =(const FileInfo_t &other)
+{
+    if (this != &other) {
+        this->_p = other._p;
+    }
+    return *this;
+}
+
 FileInfo_t::FileInfo_t(std::string file) : _p(file)
 {
 }

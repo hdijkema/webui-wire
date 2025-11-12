@@ -23,6 +23,9 @@ public:
     std::filesystem::path toPath();
 
 public:
+    FileInfo_t &operator =(const FileInfo_t & other);
+
+public:
     FileInfo_t(std::string file);
     FileInfo_t(std::filesystem::path p);
 };

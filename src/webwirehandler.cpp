@@ -133,6 +133,7 @@ defun(cmdSetHtml)
             }
         } else {
             r_err(asprintf("set-html:%d:file ", win) + file + " does not exist");
+            r_err(asprintf("set-html:%d:current directory:", win) + std::filesystem::current_path().string());
             r_nok(asprintf("set-html:%d", win));
         }
     }
@@ -459,6 +460,9 @@ defun(cmdValue)
                        "}";
         } else {
             val = replace(val, "'", "\\'");
+
+            h->message(std::string("cmdValue: got ##") + val + "##");
+
             js_value = "{"
                        "   let el = document.getElementById('" + _id + "');"
                        "   el.value = '" + val + "';"

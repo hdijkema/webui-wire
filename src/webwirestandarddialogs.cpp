@@ -182,7 +182,8 @@ std::string WebWireStandardDialogs::getDirectoryDialog(WebWireHandler *h, WebUIW
         cancelled = true;
     }
 
-    return fn;}
+    return fn;
+}
 
 WebWireStandardDialogs::WebWireStandardDialogs(Object_t *parent)
     : Object_t(parent)

@@ -32,9 +32,9 @@ class WebWireStandardDialogs : public Object_t
 public:
     PathFilterList filtersFromString(std::string filters);
 public:
-    std::string openFileDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir, PathFilterList filters, bool &cancelled);
-    std::string saveFileDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir, PathFilterList filters, bool &cancelled);
-    std::string getDirectoryDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir, bool &cancelled);
+    int openFileDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir, PathFilterList filters);
+    int saveFileDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir, PathFilterList filters);
+    int getDirectoryDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir);
 
 public:
     WebWireStandardDialogs(Object_t *parent = nullptr);

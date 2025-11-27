@@ -8,6 +8,8 @@ extern "C" {
 #include <nfd.h>
 }
 
+#include <stdlib.h>
+
 static PathFilter getFilter(std::string filter)
 {
     trim(filter);
@@ -99,9 +101,40 @@ static std::string correctPath(std::string p)
     return _p.string();
 }
 
-std::string WebWireStandardDialogs::openFileDialog(WebWireHandler *h, WebUIWindow *win,
-                                                   std::string title, std::string base_dir, PathFilterList filters,
-                                                   bool &cancelled)
+typedef struct {
+    const char *evt_name;
+    WebWireHandler *h;
+    int id;
+} OF_Struct;
+
+static int next_of_handle = 0;
+
+static int nextHandle()
+{
+    int handle = ++next_of_handle;
+    if (handle > 10000000) {
+        handle = 1;
+        next_of_handle = 1;
+    }
+    return handle;
+}
+
+static void open_dialogs_cb(nfdresult_t r, const char *data, void *user_data)
+{
+    OF_Struct *ofs = reinterpret_cast<OF_Struct *>(user_data);
+    WebWireHandler *h = ofs->h;
+    const char *evt_name = ofs->evt_name;
+    int handle = ofs->id;
+    free(ofs);
+    const char *fs = data;
+    if (data == NULL) { fs = ""; }
+    std::string e = asprintf("%s:%d:%s:%s", evt_name, handle, (r == NFD_OKAY) ? "true" : "false", fs);
+    if (data != NULL) { free(reinterpret_cast<void *>(const_cast<char *>(data))); }
+    h->evt(e);
+}
+
+int WebWireStandardDialogs::openFileDialog(WebWireHandler *h, WebUIWindow *win,
+                                           std::string title, std::string base_dir, PathFilterList filters)
 {
     nfdchar_t *outPath = NULL;
     nfd_parent_window_data_ptr_t parent_win = static_cast<nfd_parent_window_data_ptr_t>(win->nativeHandle());
@@ -110,27 +143,30 @@ std::string WebWireStandardDialogs::openFileDialog(WebWireHandler *h, WebUIWindo
     base_dir = correctPath(base_dir);
     const char *bd = (base_dir == "") ? nullptr : base_dir.c_str();
 
-    nfdresult_t result = NFD_OpenDialogWithParent( title.c_str(), filter_list.c_str(), bd, &outPath, parent_win );
+    OF_Struct *ofs = reinterpret_cast<OF_Struct *>(malloc(sizeof(OF_Struct)));
+    if (ofs == NULL) { return 0; }
 
-    std::string fn;
-    if ( result == NFD_OKAY ) {
-        fn = outPath;
-        free(outPath);
-        cancelled = false;
-    }
-    else if ( result == NFD_CANCEL ) {
-        cancelled = true;
+    int handle = nextHandle();
+
+    ofs->h = h;
+    ofs->id = handle;
+    ofs->evt_name = "file-open";
+
+    nfdresult_t result = NFD_OpenDialogWithParent( title.c_str(), filter_list.c_str(), bd, &outPath, parent_win,
+                                                  open_dialogs_cb,
+                                                  reinterpret_cast<void *>(ofs)
+                                                  );
+
+    if (result == NFD_RUNS_ASYNC) {
+        return handle;
     } else {
-        h->error(asprintf("NFD: %s\n", NFD_GetError()));
-        cancelled = true;
+        free(ofs);
+        return 0;
     }
-
-    return fn;
 }
 
-std::string WebWireStandardDialogs::saveFileDialog(WebWireHandler *h, WebUIWindow *win,
-                                                   std::string title, std::string base_dir, PathFilterList filters,
-                                                   bool &cancelled)
+int WebWireStandardDialogs::saveFileDialog(WebWireHandler *h, WebUIWindow *win,
+                                           std::string title, std::string base_dir, PathFilterList filters)
 {
     nfdchar_t *outPath = NULL;
     nfd_parent_window_data_ptr_t parent_win = static_cast<nfd_parent_window_data_ptr_t>(win->nativeHandle());
@@ -139,27 +175,31 @@ std::string WebWireStandardDialogs::saveFileDialog(WebWireHandler *h, WebUIWindo
     base_dir = correctPath(base_dir);
     const char *bd = (base_dir == "") ? nullptr : base_dir.c_str();
 
-    nfdresult_t result = NFD_SaveDialogWithParent( title.c_str(), filter_list.c_str(), bd, &outPath, parent_win );
+    OF_Struct *ofs = reinterpret_cast<OF_Struct *>(malloc(sizeof(OF_Struct)));
+    if (ofs == NULL) { return 0; }
 
-    std::string fn;
-    if ( result == NFD_OKAY ) {
-        fn = outPath;
-        free(outPath);
-        cancelled = false;
-    }
-    else if ( result == NFD_CANCEL ) {
-        cancelled = true;
+    int handle = nextHandle();
+
+    ofs->h = h;
+    ofs->id = handle;
+    ofs->evt_name = "file-save";
+
+    nfdresult_t result = NFD_SaveDialogWithParent( title.c_str(), filter_list.c_str(), bd, &outPath, parent_win,
+                                                   open_dialogs_cb,
+                                                   reinterpret_cast<void *>(ofs)
+                                                  );
+
+    if (result == NFD_RUNS_ASYNC) {
+        return handle;
     } else {
-        h->error(asprintf("NFD: %s\n", NFD_GetError()));
-        cancelled = true;
+        free(ofs);
+        return 0;
     }
-
-    return fn;
 }
 
-std::string WebWireStandardDialogs::getDirectoryDialog(WebWireHandler *h, WebUIWindow *win,
-                                                       std::string title, std::string base_dir,
-                                                       bool &cancelled)
+int WebWireStandardDialogs::getDirectoryDialog(WebWireHandler *h, WebUIWindow *win,
+                                                       std::string title, std::string base_dir
+                                                       )
 {
     nfdchar_t *outPath = NULL;
     nfd_parent_window_data_ptr_t parent_win = static_cast<nfd_parent_window_data_ptr_t>(win->nativeHandle());
@@ -167,22 +207,26 @@ std::string WebWireStandardDialogs::getDirectoryDialog(WebWireHandler *h, WebUIW
     base_dir = correctPath(base_dir);
     const char *bd = (base_dir == "") ? nullptr : base_dir.c_str();
 
-    nfdresult_t result = NFD_PickFolderWithParent( title.c_str(), bd, &outPath, parent_win );
+    OF_Struct *ofs = reinterpret_cast<OF_Struct *>(malloc(sizeof(OF_Struct)));
+    if (ofs == NULL) { return 0; }
 
-    std::string fn;
-    if ( result == NFD_OKAY ) {
-        fn = outPath;
-        free(outPath);
-        cancelled = false;
-    }
-    else if ( result == NFD_CANCEL ) {
-        cancelled = true;
+    int handle = nextHandle();
+
+    ofs->h = h;
+    ofs->id = handle;
+    ofs->evt_name = "choose-dir";
+
+    nfdresult_t result = NFD_PickFolderWithParent( title.c_str(), bd, &outPath, parent_win,
+                                                   open_dialogs_cb,
+                                                   reinterpret_cast<void *>(ofs)
+                                                 );
+
+    if (result == NFD_RUNS_ASYNC) {
+        return handle;
     } else {
-        h->error(asprintf("NFD: %s\n", NFD_GetError()));
-        cancelled = true;
+        free(ofs);
+        return 0;
     }
-
-    return fn;
 }
 
 WebWireStandardDialogs::WebWireStandardDialogs(Object_t *parent)

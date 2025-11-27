@@ -145,9 +145,9 @@ public:
     void setShowState(int win, const std::string &state);
     std::string showState(int win);
 
-    std::string fileOpen(int win, const std::string &title, const std::string &dir, const std::string &file_types, bool &ok);
-    std::string fileSave(int win, const std::string &title, const std::string &dir, const std::string &file_types, bool overwrite, bool &ok);
-    std::string chooseDir(int win, const std::string &title, const std::string &dir, bool &ok);
+    int fileOpen(int win, const std::string &title, const std::string &dir, const std::string &file_types);
+    int fileSave(int win, const std::string &title, const std::string &dir, const std::string &file_types, bool overwrite);
+    int chooseDir(int win, const std::string &title, const std::string &dir);
 
     void execJs(int win, const std::string &code, std::string tag = "exec-js");
     void execJs(int win, const std::string &code, bool &ok, std::string &result, std::string tag = "exec-js");

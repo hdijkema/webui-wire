@@ -695,11 +695,9 @@ defun(cmdFileOpen)
     if (check("file-open", var(t_int, win) << var(t_string, title) << var(t_string, directory) << var(t_string, file_types))) {
         checkWin;
 
-        bool ok;
-        std::string result = h->fileOpen(win, title, directory, file_types, ok);
-        if (ok) {
-            //std::string r = std::string("\"") + replace(result, "\"", "\\\"") + "\"";
-            r_ok(asprintf("file-open:%d:%s", win, result.c_str()));
+        int handle = h->fileOpen(win, title, directory, file_types);
+        if (handle > 0) {
+            r_ok(asprintf("file-open:%d:%d", win, handle));
         } else {
             r_nok(asprintf("file-open:%d", win));
         }
@@ -717,11 +715,9 @@ defun(cmdFileSave)
     if (check("file-save", var(t_int, win) << var(t_string, title) << var(t_string, directory) << var(t_string, file_types) << opt(t_bool, overwrite, false))) {
         checkWin;
 
-        bool ok;
-        std::string result = h->fileSave(win, title, directory, file_types, overwrite, ok);
-        if (ok) {
-            //std::string r = std::string("\"") + replace(result, "\"", "\\\"") + "\"";
-            r_ok(asprintf("file-save:%d:%s", win, result.c_str()));
+        int handle = h->fileSave(win, title, directory, file_types, overwrite);
+        if (handle > 0) {
+            r_ok(asprintf("file-save:%d:%d", win, handle));
         } else {
             r_nok(asprintf("file-save:%d", win));
         }
@@ -736,11 +732,9 @@ defun(cmdChooseDir)
     if (check("choose-dir", var(t_int, win) << var(t_string, title) << var(t_string, directory))) {
         checkWin;
 
-        bool ok;
-        std::string result = h->chooseDir(win, title, directory, ok);
-        if (ok) {
-            //std::string r = std::string("\"") + replace(result, "\"", "\\\"") + "\"";
-            r_ok(asprintf("choose-dir:%d:%s", win, result.c_str()));
+        int handle = h->chooseDir(win, title, directory);
+        if (handle > 0) {
+            r_ok(asprintf("choose-dir:%d:%d", win, handle));
         } else {
             r_nok(asprintf("choose-dir:%d", win));
         }
@@ -1759,59 +1753,35 @@ std::string WebWireHandler::showState(int win)
 }
 
 
-std::string WebWireHandler::fileOpen(int win, const std::string &title, const std::string &dir, const std::string &file_types, bool &ok)
+int WebWireHandler::fileOpen(int win, const std::string &title, const std::string &dir, const std::string &file_types)
 {
     WebUIWindow *w = getWindow(win);
     WebWireStandardDialogs dlgs;
 
     PathFilterList filters = dlgs.filtersFromString(file_types);
 
-    bool cancelled;
-    std::string fn = dlgs.openFileDialog(this, w, title, dir, filters, cancelled);
-
-    if (cancelled) {
-        ok = false;
-    } else {
-        ok = true;
-    }
-
-    return fn;
+    int handle = dlgs.openFileDialog(this, w, title, dir, filters);
+    return handle;
 }
 
-std::string WebWireHandler::fileSave(int win, const std::string &title, const std::string &dir, const std::string &file_types, bool overwrite, bool &ok)
+int WebWireHandler::fileSave(int win, const std::string &title, const std::string &dir, const std::string &file_types, bool overwrite)
 {
     WebUIWindow *w = getWindow(win);
     WebWireStandardDialogs dlgs;
 
     PathFilterList filters = dlgs.filtersFromString(file_types);
 
-    bool cancelled;
-    std::string fn = dlgs.saveFileDialog(this, w, title, dir, filters, cancelled);
-
-    if (cancelled) {
-        ok = false;
-    } else {
-        ok = true;
-    }
-
-    return fn;
+    int handle = dlgs.saveFileDialog(this, w, title, dir, filters);
+    return handle;
 }
 
-std::string WebWireHandler::chooseDir(int win, const std::string &title, const std::string &dir, bool &ok)
+int WebWireHandler::chooseDir(int win, const std::string &title, const std::string &dir)
 {
     WebUIWindow *w = getWindow(win);
     WebWireStandardDialogs dlgs;
 
-    bool cancelled;
-    std::string fn = dlgs.getDirectoryDialog(this, w, title, dir, cancelled);
-
-    if (cancelled) {
-        ok = false;
-    } else {
-        ok = true;
-    }
-
-    return fn;
+    int handle = dlgs.getDirectoryDialog(this, w, title, dir);
+    return handle;
 }
 
 void WebWireHandler::execJs(int win, const std::string &code, bool &ok, std::string &result, std::string tag)

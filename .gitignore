@@ -46,3 +46,4 @@ deps
 /CMakeLists.txt.user
 .DS_Store
 
+/.qtcreator/CMakeLists.txt.user

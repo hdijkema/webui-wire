@@ -654,6 +654,11 @@ void WebUIWindow::setExecJs(ExecJs *e)
     _exec_js = e;
 }
 
+int WebUIWindow::id() const
+{
+    return _win;
+}
+
 bool WebUIWindow::disconnected()
 {
     return _disconnected;

@@ -159,28 +159,29 @@ defun(cmdSetInnerHtml)
         WebUI_Utils utils;
 
         WinInfo_t *i = h->getWinInfo(win);
+        int handle = w->newHandle();
         if (is_file) {
             std::string base_url = w->baseUrl();
             data = utils.encodeUrl(data);
             std::string url = base_url + data;
             if (utils.checkUrl(url)) {
                 std::string p_url = utils.normalizeUrl(url);
-                i->profile->set_html(h, win, id, p_url, true);
+                i->profile->set_html(h, win, handle, id, p_url, true);
             } else {
                 ok = false;
             }
         } else {
             if (utils.checkUrl(data)) {
                 std::string p_url = utils.normalizeUrl(data);
-                i->profile->set_html(h, win, id, p_url, true);
+                i->profile->set_html(h, win, handle, id, p_url, true);
             } else {
                 // Hopefully this is valid HTML
-                i->profile->set_html(h, win, id, data, false);
+                i->profile->set_html(h, win, handle, id, data, false);
             }
         }
 
         if (ok) {
-            r_ok(asprintf("set-inner-html:%d:", win));
+            r_ok(asprintf("set-inner-html:%d:%d", win, handle));
         } else {
             r_nok(asprintf("set-inner-html:%d:", win));
         }
@@ -558,6 +559,24 @@ defun(cmdSetMenu)
     }
 }
 
+defun(cmdPopupMenu)
+{
+    int win = -1;
+    int x = -1;
+    int y = -1;
+    std::string menu;
+
+    if (check("popup-menu", var(t_int, win) << var(t_json_string, menu) << var(t_int, x) << var(t_int, y))) {
+        checkWin;
+
+        if (h->popupMenu(win, menu, x, y)) {
+            r_ok(asprintf("popup-menu:%d", win));
+        } else {
+            r_nok(asprintf("popup-menu:%d", win));
+        }
+    }
+}
+
 
 defun(cmdExit)
 {
@@ -909,6 +928,7 @@ void WebWireHandler::processCommand(const std::string &cmd, const std::stringlis
     efun("element-info", cmdElementInfo)
     efun("value", cmdValue)
     efun("set-menu", cmdSetMenu)
+    efun("popup-menu", cmdPopupMenu)
     efun("protocol", cmdProtocol)
     efun("add-class", cmdAddClass)
     efun("remove-class", cmdRemoveClass)
@@ -1716,6 +1736,13 @@ bool WebWireHandler::setMenu(int win, const std::string &menu)
 {
     ExecJs js(this, win, "set-menu", true);
     js.run("window._web_wire_menu(JSON.parse('" + ExecJs::esc_quote(menu) + "'));");
+    return true;
+}
+
+bool WebWireHandler::popupMenu(int win, const std::string &menu, int x, int y)
+{
+    ExecJs js(this, win, "popup-menu", true);
+    js.run("window._web_wire_popup_menu(JSON.parse('" + ExecJs::esc_quote(menu) + "'), " + asprintf("%d, %d", x, y) + ");");
     return true;
 }
 

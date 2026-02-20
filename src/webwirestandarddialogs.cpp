@@ -105,6 +105,7 @@ typedef struct {
     const char *evt_name;
     WebWireHandler *h;
     int id;
+    int win_id;
 } OF_Struct;
 
 static int next_of_handle = 0;
@@ -125,10 +126,14 @@ static void open_dialogs_cb(nfdresult_t r, const char *data, void *user_data)
     WebWireHandler *h = ofs->h;
     const char *evt_name = ofs->evt_name;
     int handle = ofs->id;
+    int win_id = ofs->win_id;
     free(ofs);
     const char *fs = data;
     if (data == NULL) { fs = ""; }
-    std::string e = asprintf("%s:%d:%s:%s", evt_name, handle, (r == NFD_OKAY) ? "true" : "false", fs);
+    std::string e = asprintf("%s:%d:{ \"evt\": \"%s\", \"handle\":%d, \"choosen\": %s, \"dir\":\"%s\" }",
+                             evt_name, win_id,
+                             evt_name, handle, (r == NFD_OKAY) ? "true" : "false", fs
+                             );
     if (data != NULL) { free(reinterpret_cast<void *>(const_cast<char *>(data))); }
     h->evt(e);
 }
@@ -214,6 +219,7 @@ int WebWireStandardDialogs::getDirectoryDialog(WebWireHandler *h, WebUIWindow *w
 
     ofs->h = h;
     ofs->id = handle;
+    ofs->win_id = win->id();
     ofs->evt_name = "choose-dir";
 
     nfdresult_t result = NFD_PickFolderWithParent( title.c_str(), bd, &outPath, parent_win,

@@ -72,7 +72,7 @@ public:
     std::string scriptsTag();
 
 public:
-    void set_html(WebWireHandler *h, int win, const std::string &element_id, const std::string &html, bool fetch);
+    void set_html(WebWireHandler *h, int win, int handle, const std::string &element_id, const std::string &html, bool fetch);
     std::string get_html(WebWireHandler *h, int win, const std::string &element_id, bool &ok);
 
     void set_attr(WebWireHandler *h, int win, const std::string &element_id, const std::string &attr, const std::string &val);

@@ -142,6 +142,7 @@ public:
     bool setWindowTitle(int win, const std::string &title);
     bool setWindowIcon(int win, const std::string &icn_file);
     bool setMenu(int win, const std::string &menu);
+    bool popupMenu(int win, const std::string &menu, int x, int y);
     void setShowState(int win, const std::string &state);
     std::string showState(int win);
 

@@ -29,7 +29,7 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
     dom_access.setName("dom_access");
     dom_access.setSourceCode(
         asprintf(
-            "window.dom_set_html_%d = function(id, data, do_fetch) {\n"
+            "window.dom_set_html_%d = function(the_handle, id, data, do_fetch) {\n"
             "  let el = document.getElementById(id);\n"
             "  if (el !== undefined && el !== null) {\n"
             "     if (do_fetch) { \n"
@@ -37,9 +37,13 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
             "     } else {\n"
             "       el.innerHTML = data;\n"
             "     }\n"
+            "     let obj = {evt: 'inner-html-set', handle: the_handle, oke: true };"
+            "     window._web_wire_put_evt(obj);"
             "     return 'bool:true';\n"
             "  } else {\n"
             "    console.error('element with id ' + id + ' not found');\n"
+            "     let obj = {evt: 'inner-html-set', handle: the_handle, oke: false };"
+            "     window._web_wire_put_evt(obj);"
             "    return 'bool:false';\n"
             "  }\n"
             "};\n"
@@ -205,7 +209,7 @@ WebWireProfile::WebWireProfile(const std::string &name, const std::string &defau
         "  } else if (e == 'change') {\n"
         "     obj['value'] = document.getElementById(id).value;\n"
         "  } else if (e == 'mousemove' || e == 'mouseover' || e == 'mouseenter' || \n"
-        "e == 'mouseleave' || e == 'click' || e == 'dblclick' || \n"
+        "e == 'mouseleave' || e == 'click' || e == 'dblclick' || e == 'contextmenu' ||\n"
         "e == 'mousedown' || e == 'mouseup' ) {\n"
         "     obj['altKey'] = evt.altKey;\n"
         "     obj['buttons'] = evt.buttons;\n"
@@ -487,12 +491,12 @@ void WebWireProfile::exec(WebWireHandler *h, int win, const std::string &name, c
 }
 
 
-void WebWireProfile::set_html(WebWireHandler *h, int win, const std::string &element_id, const std::string &data, bool fetch)
+void WebWireProfile::set_html(WebWireHandler *h, int win, int handle, const std::string &element_id, const std::string &data, bool fetch)
 {
     std::string do_fetch = fetch ? "true" : "false";
 
     exec(h, win, "set-inner-html",
-                _set_html_name + "(" + "'" + esc(element_id) + "', " +
+         _set_html_name + "(" + asprintf("%d", handle) + ", " + "'" + esc(element_id) + "', " +
                                           "'" + esc(data) + "', " +
                                           do_fetch +
                                     ");"

@@ -66,10 +66,8 @@ private:
 private:
     static const char *_default_favicon;
 
-private:
-    int newHandle();
-
 public:
+    int newHandle();
     std::string baseUrl();
     std::string rootFolder();
     std::string standardMessage();
@@ -94,6 +92,7 @@ public:
 
 public:
     void setExecJs(ExecJs *e);
+    int id() const;
 
 public:
 #ifdef _WINDOWS

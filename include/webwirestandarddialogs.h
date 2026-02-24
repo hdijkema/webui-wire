@@ -4,6 +4,8 @@
 #include "object_t.h"
 #include "misc.h"
 
+#define STDDLG_WIN_USE_THREADS (1==1)
+
 class WebWireHandler;
 class WebUIWindow;
 
@@ -34,7 +36,7 @@ public:
 public:
     int openFileDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir, PathFilterList filters);
     int saveFileDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir, PathFilterList filters);
-    int getDirectoryDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir);
+    int getDirectoryDialog(WebWireHandler *h, WebUIWindow *win, std::string title, std::string base_dir, int *result, std::string &dir_out);
 
 public:
     WebWireStandardDialogs(Object_t *parent = nullptr);

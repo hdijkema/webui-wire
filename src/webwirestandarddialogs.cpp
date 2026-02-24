@@ -1,6 +1,7 @@
 #include "webwirestandarddialogs.h"
 #include "webuiwindow.h"
 #include "webwirehandler.h"
+#include "json.h"
 
 #include <regex>
 
@@ -130,12 +131,15 @@ static void open_dialogs_cb(nfdresult_t r, const char *data, void *user_data)
     free(ofs);
     const char *fs = data;
     if (data == NULL) { fs = ""; }
+    std::string dir = fs;
+    dir = json_escape(dir);
     std::string e = asprintf("%s:%d:{ \"evt\": \"%s\", \"handle\":%d, \"choosen\": %s, \"dir\":\"%s\" }",
                              evt_name, win_id,
-                             evt_name, handle, (r == NFD_OKAY) ? "true" : "false", fs
+                             evt_name, handle, (r == NFD_OKAY) ? "true" : "false", dir.c_str()
                              );
     if (data != NULL) { free(reinterpret_cast<void *>(const_cast<char *>(data))); }
     h->evt(e);
+    h->msg(NFD_GetError());
 }
 
 int WebWireStandardDialogs::openFileDialog(WebWireHandler *h, WebUIWindow *win,
@@ -203,11 +207,14 @@ int WebWireStandardDialogs::saveFileDialog(WebWireHandler *h, WebUIWindow *win,
 }
 
 int WebWireStandardDialogs::getDirectoryDialog(WebWireHandler *h, WebUIWindow *win,
-                                                       std::string title, std::string base_dir
+                                                       std::string title, std::string base_dir,
+                                                        int *a_result, std::string &dir_out
                                                        )
 {
     nfdchar_t *outPath = NULL;
     nfd_parent_window_data_ptr_t parent_win = static_cast<nfd_parent_window_data_ptr_t>(win->nativeHandle());
+
+    *a_result = -1;
 
     base_dir = correctPath(base_dir);
     const char *bd = (base_dir == "") ? nullptr : base_dir.c_str();
@@ -222,6 +229,27 @@ int WebWireStandardDialogs::getDirectoryDialog(WebWireHandler *h, WebUIWindow *w
     ofs->win_id = win->id();
     ofs->evt_name = "choose-dir";
 
+#ifdef WIN32
+    if (STDDLG_WIN_USE_THREADS) {
+        nfdresult_t result = NFD_PickFolderWithParent( title.c_str(), bd, &outPath, parent_win,
+                                                      open_dialogs_cb,
+                                                      reinterpret_cast<void *>(ofs)
+                                                      );
+        return handle;
+    } else {
+        nfdresult_t result = NFD_PickFolderWithParent( title.c_str(), bd, &outPath, parent_win,
+                                                      NULL,
+                                                      reinterpret_cast<void *>(ofs)
+                                                      );
+        *a_result = static_cast<int>(result);
+        if (result == NFD_OKAY) {
+            dir_out = *outPath;
+            free(outPath);
+        }
+        free(ofs);
+        return handle;
+    }
+#else
     nfdresult_t result = NFD_PickFolderWithParent( title.c_str(), bd, &outPath, parent_win,
                                                    open_dialogs_cb,
                                                    reinterpret_cast<void *>(ofs)
@@ -233,6 +261,7 @@ int WebWireStandardDialogs::getDirectoryDialog(WebWireHandler *h, WebUIWindow *w
         free(ofs);
         return 0;
     }
+#endif
 }
 
 WebWireStandardDialogs::WebWireStandardDialogs(Object_t *parent)

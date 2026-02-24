@@ -16,6 +16,10 @@
 #include "webui_utils.h"
 #include "json.h"
 
+#ifdef WIN32
+#include <nfd.h>
+#endif
+
 namespace fs = std::filesystem;
 
 // Command handling
@@ -751,9 +755,22 @@ defun(cmdChooseDir)
     if (check("choose-dir", var(t_int, win) << var(t_string, title) << var(t_string, directory))) {
         checkWin;
 
-        int handle = h->chooseDir(win, title, directory);
+        int result = -1;
+        std::string out_dir;
+        int handle = h->chooseDir(win, title, directory, &result, out_dir);
         if (handle > 0) {
             r_ok(asprintf("choose-dir:%d:%d", win, handle));
+#ifdef WIN32
+            if (!STDDLG_WIN_USE_THREADS) {
+                const char *evt_name = "choose-dir";
+                std::string dir = json_escape(out_dir);
+                std::string e = asprintf("%s:%d:{ \"evt\": \"%s\", \"handle\":%d, \"choosen\": %s, \"dir\":\"%s\" }",
+                                         evt_name, win,
+                                         evt_name, handle, (result == NFD_OKAY) ? "true" : "false", dir.c_str()
+                                     );
+                h->evt(e);
+            }
+#endif
         } else {
             r_nok(asprintf("choose-dir:%d", win));
         }
@@ -1802,12 +1819,13 @@ int WebWireHandler::fileSave(int win, const std::string &title, const std::strin
     return handle;
 }
 
-int WebWireHandler::chooseDir(int win, const std::string &title, const std::string &dir)
+int WebWireHandler::chooseDir(int win, const std::string &title, const std::string &dir, int *result, std::string &out_dir)
 {
     WebUIWindow *w = getWindow(win);
     WebWireStandardDialogs dlgs;
 
-    int handle = dlgs.getDirectoryDialog(this, w, title, dir);
+    *result = -1;
+    int handle = dlgs.getDirectoryDialog(this, w, title, dir, result, out_dir);
     return handle;
 }
 

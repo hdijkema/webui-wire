@@ -148,7 +148,7 @@ public:
 
     int fileOpen(int win, const std::string &title, const std::string &dir, const std::string &file_types);
     int fileSave(int win, const std::string &title, const std::string &dir, const std::string &file_types, bool overwrite);
-    int chooseDir(int win, const std::string &title, const std::string &dir);
+    int chooseDir(int win, const std::string &title, const std::string &dir, int *result, std::string &out_dir);
 
     void execJs(int win, const std::string &code, std::string tag = "exec-js");
     void execJs(int win, const std::string &code, bool &ok, std::string &result, std::string tag = "exec-js");

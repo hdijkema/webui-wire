@@ -159,7 +159,8 @@ static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
 
     FILE *fh_log = NULL;
 #ifdef WIN32
-    //fopen_s(&fh_log, "/tmp/webui_wire.log", "wt");
+    //_fsopen("filename.txt", "a+",_SH_DENYWR);
+    fh_log = _fsopen("c:/tmp/webui_wire.log", "wt", _SH_DENYNO);
 #else
     fh_log = fopen("/tmp/webui_wire.log", "wt");
 #endif

@@ -31,6 +31,7 @@ namespace fs = std::filesystem;
 
 #define defun(name)         static void name(std::string cmd, WebWireHandler *h, const std::stringlist &args)
 
+
 #define r_ok(str)           h->addOk(str)
 #define r_nok(str)          h->addNOk(str)
 #define r_err(str)          h->addErr(str)
@@ -912,8 +913,15 @@ defun(cmdHelp)
 #undef msg
 #undef view
 
-#define fun(kind, name) if (cmd == kind) { name(cmd, this, args); }
-#define efun(kind, name) else if (cmd == kind) { name(cmd, this, args); }
+#define DEBUG_FUNCS
+#ifdef DEBUG_FUNCS
+#define dbgfun(name, code) message("fun:" #name);code;message("end-fun:" #name);
+#else
+#define dbgfun(name, code) code
+#endif
+
+#define fun(kind, name) if (cmd == kind) { dbgfun(name, name(cmd, this, args)); }
+#define efun(kind, name) else if (cmd == kind) { dbgfun(name, name(cmd, this, args)); }
 
 void WebWireHandler::processCommand(const std::string &cmd, const std::stringlist &args)
 {

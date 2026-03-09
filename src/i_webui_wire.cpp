@@ -314,21 +314,39 @@ enum_handle_status webwire_status(webwire_handle handle)
     return _webwire_valid_handle(handle, __FUNCTION__, __LINE__, false);
 }
 
-const char *webwire_command(webwire_handle handle, const char *command)
+const char *webwire_command(webwire_handle handle, const char *command, void (*log_f)(const char *msg))
 {
+
+    if (log_f != nullptr) log_f("check if handle is valid");
     if (_webwire_valid_handle(handle, __FUNCTION__, __LINE__, true) == webwire_valid) {
         _webwire_handle *h = static_cast<_webwire_handle *>(handle);
         std::string ok_m;
-        h->handler->processInput(command, &ok_m);
+        if (log_f != nullptr) {
+            char buf[1024];
+            sprintf(buf, "process input (webwire_handle pointer = %p)", h);
+            log_f(buf);
+            sprintf(buf, "process input (handler pointer = %p)", h->handler);
+            log_f(buf);
+            sprintf(buf, "Assigning command to std::string (%d)", static_cast<int>(strlen(command)));
+            log_f(buf);
+        }
+        std::string cmd = command;
+        h->handler->processInput(cmd, &ok_m, log_f);
+        if (log_f != nullptr) log_f("process input done");
 
         size_t s = ok_m.size() + 1;
         if (h->size_command_result < s) {
+            if (log_f != nullptr) log_f("reallocating command result");
             h->size_command_result = s + 256;
             h->command_result = static_cast<char *>(realloc(h->command_result, h->size_command_result));
         }
+        if (log_f != nullptr) log_f("copy command result");
         memcpy(h->command_result, ok_m.c_str(), s + 1);
+        h->handler->message("returning command result");
+
         return h->command_result;
     } else {
+        if (log_f != nullptr) log_f("not a valid handle");
         return "NOK::INVALID HANDLE";
     }
 }

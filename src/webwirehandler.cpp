@@ -1025,7 +1025,7 @@ void WebWireHandler::msg(const std::string &msg)
     message(msg);
 }
 
-std::stringlist WebWireHandler::splitArgs(std::string l)
+std::stringlist WebWireHandler::splitArgs(std::string l, void (log_f(const char *msg)))
 {
     int from = 0;
     int i, N;
@@ -1041,12 +1041,18 @@ std::stringlist WebWireHandler::splitArgs(std::string l)
     bool prev_escape = false;
     for(i = 0, N = l.size(); i < N; ) {
         if (is_space(l[i]) && !in_str) {
+            char buf[10200];
+            sprintf(buf, "l = %s, from = %d, i - from = %d, i = %d", l.c_str(), from, i - from, i);
+            if (log_f != nullptr) log_f(buf);
             append(l.substr(from, i - from));
             while (i < N && is_space(l[i])) { i++; }
             from = i;
         } else if (l[i] == '\"') {
             if (in_str) {
                 if (!prev_escape) {
+                    char buf[10240];
+                    sprintf(buf, "l = %s, from = %d, i - from = %d, i = %d", l.c_str(), from, i - from, i);
+                    if (log_f != nullptr) log_f(buf);
                     std::string s = replace(l.substr(from, i - from), "\\\"", "\"");
                     append(s);
                     i += 1;
@@ -1071,6 +1077,9 @@ std::stringlist WebWireHandler::splitArgs(std::string l)
         }
     }
     if (from != N) {
+        char buf[10240];
+        sprintf(buf, "l = %s, N = %d, i = %d", l.c_str(), N, i);
+        if (log_f != nullptr) log_f(buf);
         append(l.substr(from));
     }
 
@@ -1094,13 +1103,21 @@ void WebWireHandler::setLogLevel(WebWireLogLevel_t l)
     _min_log_level = l;
 }
 
-void WebWireHandler::processInput(const std::string &line, std::string *ok_msg)
+void WebWireHandler::processInput(const std::string &line, std::string *ok_msg, void (*log_f)(const char *msg))
 {
+    _log_f = log_f;
+
+    if (log_f != nullptr) log_f("starting process input");
+    if (log_f != nullptr) log_f(line.c_str());
+
     _reasons.clear();
     _responses.clear();
 
+    if (log_f != nullptr) log_f("trim_copy");
     std::string l = trim_copy(line);
-    std::stringlist expr = splitArgs(l);
+
+    if (log_f != nullptr) log_f("splitArgs");
+    std::stringlist expr = splitArgs(l, log_f);
 
     //if (!expr.empty() && expr.last() == "") {
     //    expr.removeLast();
@@ -1108,11 +1125,14 @@ void WebWireHandler::processInput(const std::string &line, std::string *ok_msg)
     if (expr.size() > 0) {
         std::string cmd = lcase(expr.front());
         expr.pop_front();
+        if (log_f != nullptr) message("processCommand");
         processCommand(cmd, expr);
     } else {
         _reasons.append("Does not compute");
         _responses.append("NOK:" + l);
     }
+
+    if (log_f != nullptr) log_f("evaluate reasons");
 
     if (_reasons.size() > 0) {
         std::stringlist::iterator it = _reasons.begin();
@@ -1122,11 +1142,15 @@ void WebWireHandler::processInput(const std::string &line, std::string *ok_msg)
         }
     }
 
+    if (log_f != nullptr) log_f("evaluate responses");
+
     if (_responses.size() > 0) {
         std::string msg = _responses.join(", ");
         if (ok_msg != nullptr) {
+            if (log_f != nullptr) log_f("set *ok_msg");
             *ok_msg = msg;
         } else {
+            if (log_f != nullptr) log_f("check msg kind and emit values");
             if (msg.rfind("OK:", 0) == 0) {
                 emit(evt_handler_log << stdout << "OK" << msg.substr(3));
             } else if (msg.rfind("NOK:", 0) == 0) {
@@ -1136,6 +1160,8 @@ void WebWireHandler::processInput(const std::string &line, std::string *ok_msg)
             }
         }
     }
+
+    if (log_f != nullptr) log_f("processInput done");
 }
 
 void WebWireHandler::inputStopped(const Event_t &e)
@@ -1291,6 +1317,11 @@ void WebWireHandler::message(const std::string &msg)
 {
     if (_min_log_level <= WebWireLogLevel_t::info) {
         emit(evt_handler_log << stderr << "MSG" << msg);
+        if (_log_f != nullptr) {
+            char buf[10240];
+            sprintf(buf, "log_f-message: %s", msg.c_str());
+            _log_f(buf);
+        }
     }
 }
 
@@ -1368,6 +1399,8 @@ WebWireHandler::WebWireHandler(Application_t *app, int argc, char *argv[],
     : Object_t(), _log_handler(log_handler), _evt_handler(evt_handler), _user_data(user_data)
 {
     connect(this, id_handler_log, this);    // handle log events in the main thread
+
+    _log_f = nullptr;
 
     _app = app;
 

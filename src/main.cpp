@@ -135,6 +135,8 @@ void webui_gtk_log_handler(const gchar *log_domain, GLogLevelFlags log_level, co
 #endif
 
 
+static FILE *cmd_log_fh;
+
 static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
 {
     int buf_size = 1024;
@@ -164,11 +166,20 @@ static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
 #else
     fh_log = fopen("/tmp/webui_wire.log", "wt");
 #endif
+    cmd_log_fh = fh_log;
 
     auto do_log = [fh_log](const char *kind, int len, const char *msg) {
         if (fh_log != NULL) {
             fprintf(fh_log, "%s-%08d:%s\n", kind, len, msg);
             fflush(fh_log);
+        }
+    };
+
+    auto cmd_log = [](const char *msg) {
+        if (cmd_log_fh != NULL) {
+            int len = strlen(msg);
+            fprintf(cmd_log_fh, "%s-%08d:%s\n", "cmd-log", len, msg);
+            fflush(cmd_log_fh);
         }
     };
 
@@ -206,7 +217,8 @@ static void mainLoop(webwire_handle handle, bool &go_on, FILE *out, FILE *err)
 //#ifdef __APPLE__
 //                const char *result = webwire_command_apple(handle, line.c_str());
 //#else
-                const char *result = webwire_command(handle, line.c_str());
+                const char *result = webwire_command(handle, line.c_str(), cmd_log);
+                do_log("webwire_command result ", strlen(result), result);
 //#endif
                 int len = snprintf(out_buf, buf_size, "%s", result);
                 if (check_buf_size(len)) {

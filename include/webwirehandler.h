@@ -95,12 +95,13 @@ private:
 
     void (*_log_handler)(const char *kind, const char *msg, void *user_data);
     void (*_evt_handler)(const char *msg, void *user_data);
+    void (*_log_f)(const char *msg);
 
     void                                *_user_data;
 
 private:
     void log(FILE *fh, FILE *log_fh, const char *format, const char *msg);
-    std::stringlist splitArgs(std::string l);
+    std::stringlist splitArgs(std::string l, void log_f(const char *) = nullptr);
 
 public:
     void setLogLevel(WebWireLogLevel_t l);
@@ -115,7 +116,7 @@ private:  // Eventing
     void handleTimer(Event_t e);
 
 public:  // Eventing
-    void processInput(const std::string &line, std::string *ok_msg = nullptr);
+    void processInput(const std::string &line, std::string *ok_msg = nullptr, void (*log_f)(const char *) = nullptr);
 
 public:
     WebWireHandler(Application_t *app, int argc, char *argv[],

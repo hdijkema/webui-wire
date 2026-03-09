@@ -99,6 +99,8 @@ std::string ExecJs::call(const std::string &code, bool &ok)
     //ok = webui_script(_webui_win, code.c_str(), MAX_EXEC_TIME, buf, MAX_JS_BUF);
     webui_run(_webui_win, script.c_str());
 
+    _handler->message("webui_run called");
+
     if (_is_void) {
         _handler->error("ExecJs:Calling code that has been declared void");
     }
@@ -109,12 +111,23 @@ std::string ExecJs::call(const std::string &code, bool &ok)
         return s;
     }
 
+    {
+        char buf[1024];
+        sprintf(buf, "Setting ExecJs on window %p", _window);
+        _handler->message("Setting ExecJs on the window");
+    }
+
     _window->setExecJs(this);
 
     _result_set = false;
     WebUI_Utils u;
 
+    _handler->message("Waiting for result");
     WebUI_Utils::WaitResult r = u.waitUntil([this](){ return _result_set; }, MAX_EXEC_TIME * 1000);
+
+    char buf[1024];
+    sprintf(buf, "Result of waiting = %d", r);
+    _handler->message(buf);
 
     if (r == WebUI_Utils::wu_timeout) {
         _handler->error("ExecJs: Timeout for code " + code);
@@ -124,9 +137,11 @@ std::string ExecJs::call(const std::string &code, bool &ok)
     }
 
     if (_result_ok) {
+        _handler->message("OK: making result");
         ok = true;
         return makeResult(_handler, _result);
     } else {
+        _handler->message("NOK: result = ''");
         ok = false;
         _handler->error("ExecJs: Error executing " + code);
         _handler->error("ExecJs: Error message: " + _result_msg);

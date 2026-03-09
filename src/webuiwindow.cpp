@@ -478,9 +478,26 @@ void WebUIWindow::webuiEvent(webui_event_t *e)
 
 void WebUIWindow::handleWireEvent(webui_event_t *e)
 {
-    std::string event = webui_get_string(e);
+    _handler->message(asprintf("Handling event %p", e));
+    //typedef struct webui_event_t {
+    //    size_t window;          // The window object number
+    //    size_t event_type;      // Event type
+    //    char* element;          // HTML element ID
+    //    size_t event_number;    // Internal WebUI
+    //    size_t bind_id;         // Bind ID
+    //    size_t client_id;       // Client's unique ID
+    //    size_t connection_id;   // Client's connection ID
+    //    char* cookies;          // Client's full cookies
+    //} webui_event_t;
+    _handler->message(asprintf("Event type: %d, element: %s", e->event_type, e->element));
+    std::string event;
+    const char *str = webui_get_string(e);
+    if (str == nullptr) {
+        _handler->error("Unexpected! nullptr from webui_get_string for the event");
+    } else {
+        event = str;
+    }
     _handler->message(event);
-
 
     bool ok = true;;
     std::string errmsg;
@@ -718,12 +735,12 @@ int WebUIWindow::show(const std::string &msg_or_url)
 #endif
 
     // Wait until the window get's connected again.
-    int show_timeout = 30;
-    WebUI_Utils u;
-    WebUI_Utils::WaitResult r = u.waitUntil([this]() { return _page_loaded; },
-                                            show_timeout * 1000
-                                            );
-    _handler->message(asprintf("Result of WebUI_Utils::waitUntil = %d", r));
+    //int show_timeout = 30;
+    //WebUI_Utils u;
+    //WebUI_Utils::WaitResult r = u.waitUntil([this]() { return _page_loaded; },
+    //                                        show_timeout * 1000
+    //                                        );
+    //_handler->message(asprintf("Result of WebUI_Utils::waitUntil = %d", r));
 
     _in_set_html_or_url = false;
     return handle;

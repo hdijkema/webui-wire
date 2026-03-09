@@ -35,7 +35,7 @@ WEBUI_WIRE_EXPORT bool webwire_process_gui(webwire_handle h);
 
 WEBUI_WIRE_EXPORT webwire_handle webwire_current();
 WEBUI_WIRE_EXPORT void webwire_destroy(webwire_handle h);
-WEBUI_WIRE_EXPORT const char *webwire_command(webwire_handle h, const char *command);
+WEBUI_WIRE_EXPORT const char *webwire_command(webwire_handle h, const char *command, void (*f)(const char *msg));
 WEBUI_WIRE_EXPORT unsigned int webwire_items(webwire_handle handle);
 WEBUI_WIRE_EXPORT enum_get_result webwire_get(webwire_handle handle, char **evt, char **log_kind, char **log_msg);
 WEBUI_WIRE_EXPORT enum_handle_status webwire_status(webwire_handle h);
